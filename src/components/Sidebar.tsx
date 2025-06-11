@@ -8,25 +8,15 @@ export default function Sidebar() {
   const router = useRouter()
   const menu = [
     {
-      label: 'Dashboard',
-      href: '/dashboard',
-      icon: <HomeIcon className="w-5 h-5" />
-    },
-    {
       label: 'Projects',
-      href: '/dashboard',
+      href: '/projects',
       icon: <Squares2X2Icon className="w-5 h-5" />
-    },
-    {
-      label: 'Domains',
-      href: '/domains/relations',
-      icon: <Cog6ToothIcon className="w-5 h-5" />
     }
   ]
 
   return (
     <aside className="w-64 bg-gray-800 text-gray-100 flex-shrink-0">
-      <div className="p-6 text-2xl font-bold">APPIFY</div>
+      <div className="p-6 text-2xl font-bold"></div>
       <nav className="mt-6">
         {menu.map(item => (
           <Link

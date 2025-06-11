@@ -1,11 +1,11 @@
 // src/lib/googleAuth.ts
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000'
 
 /**
  * Returns the full URL to initiate Google OAuth login on the backend.
  */
 export function getGoogleAuthUrl(): string {
-  return `${API_URL}/auth/google`
+  return `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/google`
 }
 
 /**

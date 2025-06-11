@@ -9,7 +9,7 @@ export default function AuthSuccessPage() {
   useEffect(() => {
     if (typeof token === 'string') {
       localStorage.setItem('accessToken', token)
-      router.replace('/dashboard')
+      router.replace('/projects')
     }
   }, [token, router])
 

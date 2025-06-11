@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const t = String(router.query.token)
       localStorage.setItem('accessToken', t)
       setToken(t)
-      router.replace('/dashboard')
+      router.replace('/projects')
     }
   }, [router])
 
