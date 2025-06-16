@@ -29,7 +29,7 @@ export default function ProjectCard({ project, onDelete }: ProjectCardProps) {
       </div>
 
       <div className="px-4 pb-4 flex items-center justify-between text-sm text-gray-500">
-        <Link href={`/projects/${project._id}`} className="hover:text-indigo-600">
+        <Link href={`/projects/${project._id}/documents`} className="hover:text-indigo-600">
           View
         </Link>
         {onDelete && (
