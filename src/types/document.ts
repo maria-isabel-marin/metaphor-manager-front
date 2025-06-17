@@ -1,16 +1,26 @@
 // src/types/document.ts
 export type DocumentStatus = 'draft' | 'published';
 
+// front/src/types/document.ts
 export interface Document {
-  _id: string;
-  projectId: string;
-  title: string;
-  type: string;
-  language: string;
-  notes?: string;
-  status: DocumentStatus;
-  filePdf: string;
-  fileTxt: string;
-  createdAt: string;
-  updatedAt: string;
+  _id: string
+  projectId: string
+  createdBy: string
+
+  title: string
+  type: string
+  language: string
+  notes?: string
+
+  // rutas en GCS (opcional guardar si lo usas)
+  gcsPathPdf?: string
+  gcsPathTxt?: string
+
+  // URLs firmadas para descarga
+  filePdfUrl?: string
+  fileTxtUrl?: string
+
+  status: DocumentStatus
+  createdAt: string
+  updatedAt: string
 }
