@@ -74,7 +74,7 @@ export default function DocumentCard({
         <button
           onClick={() =>
             router.push(
-              `/projects/${document.projectId}/documents/${document._id}`
+              `/projects/${document.projectId}/documents/${document._id}/annotations`
             )
           }
           className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition"

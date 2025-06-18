@@ -8,17 +8,19 @@ import React, {
   useContext,
 } from 'react'
 import { useRouter } from 'next/router'
-import api from '@/lib/api'
+import { authApi } from '@/lib/api'
 
-interface User {
+export interface User {
   id: string
   name: string
   email: string
+  role: string
 }
 
-interface AuthContextData {
+export interface AuthContextData {
   token: string | null
   user: User | null
+  loading: boolean            // <-- newly exposed
   loginWithGoogle: () => void
   logout: () => void
 }
@@ -29,6 +31,12 @@ interface AuthProviderProps {
 
 export const AuthContext = createContext<AuthContextData | null>(null)
 
+export const useAuthContext = () => {
+  const ctx = useContext(AuthContext)
+  if (!ctx) throw new Error('useAuthContext must be used inside AuthProvider')
+  return ctx
+}
+
 export const useAuth = () => {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used inside AuthProvider')
@@ -38,12 +46,15 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [token, setToken] = useState<string | null>(null)
   const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)  // loading state
   const router = useRouter()
 
-  // Load token from storage or handle redirect
+  // 1) Load token from localStorage or handle /auth/success redirect
   useEffect(() => {
     const stored = localStorage.getItem('accessToken')
-    if (stored) setToken(stored)
+    if (stored) {
+      setToken(stored)
+    }
 
     if (
       router.pathname === '/auth/success' &&
@@ -56,29 +67,38 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }, [router])
 
-  // Fetch user profile when token changes
+  // 2) Fetch profile whenever token changes
   useEffect(() => {
     if (!token) {
       setUser(null)
+      setLoading(false)
       return
     }
-    api
+
+    setLoading(true)
+    authApi
       .get('/auth/profile', {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then(res => {
-        const { sub, name, email } = res.data
-        setUser({ id: sub, name, email })
+        setUser({
+          id: res.data.id,
+          name: res.data.name,
+          email: res.data.email,
+          role: res.data.role,
+        })
       })
       .catch(() => {
         setUser(null)
+      })
+      .finally(() => {
+        setLoading(false)
       })
   }, [token])
 
   const loginWithGoogle = () => {
     window.location.href = `/auth/google`
   }
-
   const logout = () => {
     localStorage.removeItem('accessToken')
     setToken(null)
@@ -88,7 +108,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   return (
     <AuthContext.Provider
-      value={{ token, user, loginWithGoogle, logout }}
+      value={{ token, user, loading, loginWithGoogle, logout }}
     >
       {children}
     </AuthContext.Provider>

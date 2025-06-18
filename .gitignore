@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+front.sh
+front_api_calls_report.txt
+all_api_calls.txt

@@ -20,8 +20,8 @@ export interface AnnotatedMetaphor {
   context: string;
   literalMeaning: string;
   contextualMeaning: string;
-  sourceDomain: string;
-  targetDomain: string;
+  sourceDomain: { _id: string; name: string };
+  targetDomain: { _id: string; name: string };
   conceptualMetaphor: string;
   ontologicalMappings: string[];
   epistemicMappings: string[];
