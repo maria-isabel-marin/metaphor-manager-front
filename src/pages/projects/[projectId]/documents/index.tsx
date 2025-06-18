@@ -5,24 +5,39 @@ import { useEffect, useState, useCallback } from 'react'
 import api from '@/lib/api'
 import Layout from '@/components/Layout'
 import DocumentCard from '@/components/DocumentCard'
+import AnnotationUploadModal from '@/components/AnnotationUploadModal'
+
 import DocumentModal from '@/components/DocumentModal'
 import { Document } from '@/types/document'
+
+console.log({
+  Layout:   typeof Layout,
+  DocModal: typeof DocumentModal,
+  UpModal:  typeof AnnotationUploadModal,
+  DocCard:  typeof DocumentCard,
+})
 
 export default function ProjectDocumentsPage() {
   const router = useRouter()
   const { projectId } = router.query as { projectId?: string }
+
   const [project, setProject] = useState<{ name: string; description: string } | null>(null)
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
-  const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // Load project info and its documents
+  // controls New Document modal
+  const [isNewDocOpen, setIsNewDocOpen] = useState(false)
+
+  // controls Upload Annotations modal
+  const [uploadDocId, setUploadDocId] = useState<string | null>(null)
+
   const loadAll = useCallback(() => {
     if (!projectId) return
     setLoading(true)
     api.get(`/projects/${projectId}`)
       .then(res => setProject(res.data))
       .catch(() => setProject(null))
+
     api.get<Document[]>(`/projects/${projectId}/documents`)
       .then(res => setDocuments(res.data))
       .finally(() => setLoading(false))
@@ -34,16 +49,33 @@ export default function ProjectDocumentsPage() {
 
   return (
     <Layout>
-      {/* New Document Modal */}
+      {/** New‐Document modal **/}
       <DocumentModal
         projectId={projectId!}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onCreated={loadAll}
+        isOpen={isNewDocOpen}
+        onClose={() => setIsNewDocOpen(false)}
+        onCreated={() => {
+          setIsNewDocOpen(false)
+          loadAll()
+        }}
       />
 
+      {/** Upload‐Annotations modal **/}
+      {uploadDocId && (
+        <AnnotationUploadModal
+          projectId={projectId!}
+          documentId={uploadDocId}
+          isOpen={!!uploadDocId}
+          onClose={() => setUploadDocId(null)}
+          onUploaded={(count) => {
+            alert(`${count} metaphors imported.`)
+            setUploadDocId(null)
+            loadAll()
+          }}
+        />
+      )}
+
       <div className="space-y-6">
-        {/* Project Header */}
         {project && (
           <div className="bg-white p-6 rounded-lg shadow">
             <h1 className="text-2xl font-bold">{project.name}</h1>
@@ -51,10 +83,10 @@ export default function ProjectDocumentsPage() {
           </div>
         )}
 
-        {/* Action Buttons */}
+        {/** action bar **/}
         <div className="flex flex-wrap justify-between items-center">
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => setIsNewDocOpen(true)}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
           >
             + New Document
@@ -76,18 +108,16 @@ export default function ProjectDocumentsPage() {
           </div>
         </div>
 
-        {/* Documents Grid */}
         {loading ? (
           <div>Loading documents…</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {documents.map(doc => (
+            {documents.map((doc) => (
               <DocumentCard
                 key={doc._id}
                 document={doc}
-                onDeleted={() =>
-                  setDocuments(docs => docs.filter(d => d._id !== doc._id))
-                }
+                onDeleted={loadAll}
+                onUpload={() => setUploadDocId(doc._id)}
               />
             ))}
           </div>

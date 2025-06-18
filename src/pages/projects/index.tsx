@@ -1,28 +1,33 @@
 // src/pages/projects/index.tsx
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/router'
 import api from '@/lib/api'
 import ProjectCard from '@/components/ProjectCard'
+import ProjectModal from '@/components/ProjectModal'
 import { useAuth } from '@/hooks/useAuth'
 import { Project } from '@/types/project'
 
 export default function ProjectsIndexPage() {
-  const [projects, setProjects] = useState<Project[]>([])
-  const [loading, setLoading] = useState(true)
-  const { logout } = useAuth()
-  const router = useRouter()
+  const [projects, setProjects]     = useState<Project[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const { logout }                  = useAuth()
+  const router                      = useRouter()
 
-  useEffect(() => {
+  const loadProjects = useCallback(() => {
+    setLoading(true)
     api.get<Project[]>('/projects')
       .then(res => setProjects(res.data))
       .finally(() => setLoading(false))
   }, [])
 
+  useEffect(() => { loadProjects() }, [loadProjects])
+
   const handleDelete = (id: string) => {
-    if (confirm('Delete this project?')) {
-      api.delete(`/projects/${id}`)
-        .then(() => setProjects(cur => cur.filter(p => p._id !== id)))
-    }
+    if (!confirm('Delete this project?')) return
+    api.delete(`/projects/${id}`).then(() =>
+      setProjects(curr => curr.filter(p => p._id !== id))
+    )
   }
 
   return (
@@ -30,8 +35,9 @@ export default function ProjectsIndexPage() {
       <header className="bg-white shadow px-6 py-4 flex justify-between items-center">
         <h1 className="text-2xl font-bold">Your Projects</h1>
         <div className="flex gap-4">
+          {/* open the modal instead of navigating */}
           <button
-            onClick={() => router.push('/projects/new')}
+            onClick={() => setIsModalOpen(true)}
             className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
           >
             + New Project
@@ -45,13 +51,30 @@ export default function ProjectsIndexPage() {
         </div>
       </header>
 
+      {/* New Project Modal */}
+      <ProjectModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onCreated={proj => {
+          // prepend the new project & close
+          setProjects(curr => [proj, ...curr])
+          setIsModalOpen(false)
+        }}
+      />
+
       <main className="flex-1 p-6">
         {loading ? (
           <div>Loading projects…</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {projects.map(p => (
-              <ProjectCard key={p._id} project={p} onDelete={handleDelete} />
+              <ProjectCard
+                key={p._id}
+                project={p}
+                onDelete={handleDelete}
+                // call router.push from parent so ProjectCard stays dumb
+                onView={() => router.push(`/projects/${p._id}/documents`)}
+              />
             ))}
           </div>
         )}

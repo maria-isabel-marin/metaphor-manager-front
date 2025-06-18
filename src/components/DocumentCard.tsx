@@ -1,16 +1,20 @@
-// front/src/components/DocumentCard.tsx
+// src/components/DocumentCard.tsx
 
 import { useRouter } from 'next/router'
-import Link from 'next/link'
-import api from '@/lib/api'
-import { Document } from '@/types/document'
+import api            from '@/lib/api'
+import { Document }   from '@/types/document'
 
 interface DocumentCardProps {
   document: Document
   onDeleted: () => void
+  onUpload:   () => void
 }
 
-export default function DocumentCard({ document, onDeleted }: DocumentCardProps) {
+export default function DocumentCard({
+  document,
+  onDeleted,
+  onUpload,
+}: DocumentCardProps) {
   const router = useRouter()
   const pdfUrl = document.filePdfUrl || null
   const txtUrl = document.fileTxtUrl || null
@@ -22,18 +26,18 @@ export default function DocumentCard({ document, onDeleted }: DocumentCardProps)
         `/projects/${document.projectId}/documents/${document._id}`
       )
       onDeleted()
-    } catch (err) {
-      console.error(err)
+    } catch {
       alert('Failed to delete document.')
     }
   }
 
   return (
     <div className="bg-white rounded-lg shadow hover:shadow-lg transition flex flex-col overflow-hidden">
-      <div className="p-4 flex-1">
-        <h3 className="text-lg font-semibold">{document.title}</h3>
-        <p className="text-gray-500 text-sm">
-          {document.type} • {document.language}
+      {/* content */}
+      <div className="p-4 flex-1 flex flex-col">
+        <h3 className="text-lg font-semibold text-gray-800">{document.title}</h3>
+        <p className="text-gray-500 text-sm mt-1">
+          {document.type} &middot; {document.language}
         </p>
 
         {pdfUrl && (
@@ -41,29 +45,47 @@ export default function DocumentCard({ document, onDeleted }: DocumentCardProps)
             href={pdfUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 inline-block text-blue-600 hover:underline"
+            className="mt-3 inline-block text-blue-600 hover:underline"
           >
             Download PDF
           </a>
         )}
-
         {txtUrl && (
           <a
             href={txtUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 inline-block text-blue-600 hover:underline ml-4"
+            className="mt-3 inline-block text-blue-600 hover:underline"
           >
             Download TXT
           </a>
         )}
       </div>
 
-      <div className="px-4 py-2 bg-gray-50 flex justify-between items-center">
-        <Link href={`/projects/${document.projectId}/documents/${document._id}`}>
-          Manage Annotated Metaphors
-        </Link>
-        <button onClick={handleDelete} className="text-red-600 hover:underline">
+      {/* action buttons */}
+      <div className="grid grid-cols-3 gap-2 p-4 bg-gray-50">
+        <button
+          onClick={onUpload}
+          className="w-full py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium rounded transition"
+        >
+          Upload Annotations
+        </button>
+
+        <button
+          onClick={() =>
+            router.push(
+              `/projects/${document.projectId}/documents/${document._id}`
+            )
+          }
+          className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition"
+        >
+          Manage Annotations
+        </button>
+
+        <button
+          onClick={handleDelete}
+          className="w-full py-2 border border-red-500 text-red-500 hover:bg-red-50 text-sm font-medium rounded transition"
+        >
           Delete
         </button>
       </div>
