@@ -3,31 +3,26 @@ import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
 
 export default function Navbar() {
-  const { token, logout } = useAuth()
+  const { logout } = useAuth()
 
   return (
-    <nav className="bg-white shadow p-4 flex justify-between items-center">
-      <Link href="/projects" className="text-2xl font-bold text-gray-800">
-        Metaphor Manager
-      </Link>
+    <nav className="bg-primary text-white shadow p-4 flex justify-between items-center w-full font-sans">
+      <div className="flex items-center space-x-6">
+        <Link href="/projects" className="text-2xl font-bold tracking-tight">
+          Metaphor Manager
+        </Link>
+      </div>
       <div className="flex items-center space-x-4">
-        {token ? (
-          <>
-            <button
-              onClick={logout}
-              className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition"
-            >
-              Log Out
-            </button>
-          </>
-        ) : (
-          <Link
-            href="/"
-            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-          >
-            Sign In
-          </Link>
-        )}
+        <Link href="/about" className="hover:text-blue-200 font-medium transition-colors">About</Link>
+        <Link href="/profile" className="hover:text-blue-200 font-medium transition-colors">Profile</Link>
+      </div>
+      <div>
+        <button
+          onClick={logout}
+          className="px-3 py-1 bg-secondary text-white rounded hover:bg-red-700 transition font-medium"
+        >
+          Log Out
+        </button>
       </div>
     </nav>
   )

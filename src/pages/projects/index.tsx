@@ -6,6 +6,8 @@ import ProjectCard from '@/components/ProjectCard'
 import ProjectModal from '@/components/ProjectModal'
 import { useAuth } from '@/hooks/useAuth'
 import { Project } from '@/types/project'
+import Layout from '@/components/Layout'
+import Breadcrumb from '@/components/Breadcrumb'
 
 export default function ProjectsIndexPage() {
   const [projects, setProjects]     = useState<Project[]>([])
@@ -31,40 +33,29 @@ export default function ProjectsIndexPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      <header className="bg-white shadow px-6 py-4 flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Your Projects</h1>
-        <div className="flex gap-4">
-          {/* open the modal instead of navigating */}
+    <Layout breadcrumb={<Breadcrumb items={[{ label: 'Projects' }]} />}>
+      <div className="w-full space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">Your Projects</h1>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition"
           >
             + New Project
           </button>
-          <button
-            onClick={logout}
-            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg"
-          >
-            Log Out
-          </button>
         </div>
-      </header>
 
-      {/* New Project Modal */}
-      <ProjectModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onCreated={proj => {
-          // prepend the new project & close
-          setProjects(curr => [proj, ...curr])
-          setIsModalOpen(false)
-        }}
-      />
+        <ProjectModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onCreated={proj => {
+            setProjects(curr => [proj, ...curr])
+            setIsModalOpen(false)
+          }}
+        />
 
-      <main className="flex-1 p-6">
         {loading ? (
-          <div>Loading projects…</div>
+          <div className="w-full text-center py-8">Loading projects...</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {projects.map(p => (
@@ -72,17 +63,12 @@ export default function ProjectsIndexPage() {
                 key={p._id}
                 project={p}
                 onDelete={handleDelete}
-                // call router.push from parent so ProjectCard stays dumb
                 onView={() => router.push(`/projects/${p._id}/documents`)}
               />
             ))}
           </div>
         )}
-      </main>
-
-      <footer className="bg-white border-t py-4 text-center text-gray-600 text-sm">
-        © 2025 AI-Driven Metaphor Field-Loop Theory. All rights reserved.
-      </footer>
-    </div>
+      </div>
+    </Layout>
   )
 }

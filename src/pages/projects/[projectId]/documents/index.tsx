@@ -9,6 +9,7 @@ import AnnotationUploadModal from '@/components/AnnotationUploadModal'
 
 import DocumentModal from '@/components/DocumentModal'
 import { Document } from '@/types/document'
+import Breadcrumb from '@/components/Breadcrumb'
 
 console.log({
   Layout:   typeof Layout,
@@ -48,7 +49,11 @@ export default function ProjectDocumentsPage() {
   }, [loadAll])
 
   return (
-    <Layout>
+    <Layout breadcrumb={<Breadcrumb items={[
+      { label: 'Projects', href: '/projects' },
+      { label: 'Project', href: `/projects/${projectId}/documents` },
+      { label: 'Documents' }
+    ]} />}>
       {/** New‐Document modal **/}
       <DocumentModal
         projectId={projectId!}
@@ -75,19 +80,19 @@ export default function ProjectDocumentsPage() {
         />
       )}
 
-      <div className="space-y-6">
+      <div className="space-y-6 w-full">
         {project && (
-          <div className="bg-white p-6 rounded-lg shadow">
+          <div className="bg-white p-6 rounded-lg shadow-sm w-full">
             <h1 className="text-2xl font-bold">{project.name}</h1>
             <p className="text-gray-600 mt-2">{project.description}</p>
           </div>
         )}
 
         {/** action bar **/}
-        <div className="flex flex-wrap justify-between items-center">
+        <div className="flex flex-wrap justify-between items-center w-full">
           <button
             onClick={() => setIsNewDocOpen(true)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+            className="px-4 py-2 bg-primary text-white rounded-lg transition hover:bg-blue-700"
           >
             + New Document
           </button>
@@ -95,13 +100,13 @@ export default function ProjectDocumentsPage() {
           <div className="space-x-4">
             <button
               onClick={() => router.push(`/projects/${projectId}/all-metaphors`)}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition"
+              className="px-4 py-2 bg-primary text-white rounded-lg transition hover:bg-blue-700"
             >
               All Metaphors
             </button>
             <button
               onClick={() => router.push('/domains/relations')}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition"
+              className="px-4 py-2 bg-primary text-white rounded-lg transition hover:bg-blue-700"
             >
               Manage Domain Relations
             </button>
@@ -109,9 +114,9 @@ export default function ProjectDocumentsPage() {
         </div>
 
         {loading ? (
-          <div>Loading documents…</div>
+          <div className="w-full text-center py-8">Loading documents...</div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full">
             {documents.map((doc) => (
               <DocumentCard
                 key={doc._id}

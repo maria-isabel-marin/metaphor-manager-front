@@ -10,8 +10,14 @@ import {
   PaginationState,
   getPaginationRowModel,
   flexRender,
+  Table,
+  Row,
+  HeaderGroup,
+  CellContext,
 } from '@tanstack/react-table'
 import { AnnotatedMetaphor } from '@/types/annotatedMetaphor'
+import { useAuth } from '@/hooks/useAuth'
+import { Domain } from '@/types/domain'
 
 interface Props {
   projectId: string
@@ -19,13 +25,47 @@ interface Props {
   role: 'editor' | 'reviewer'
 }
 
+interface EditedCell {
+  id: string
+  field: string
+  oldValue: any
+  newValue: any
+}
+
+// Función auxiliar para comparar valores
+const areValuesEqual = (a: any, b: any): boolean => {
+  if (a === b) return true
+  if (a === null || b === null) return a === b
+  if (typeof a === 'object' && typeof b === 'object') {
+    if ('_id' in a && '_id' in b) return a._id === b._id
+    return JSON.stringify(a) === JSON.stringify(b)
+  }
+  return String(a) === String(b)
+}
+
+// Función auxiliar para formatear valores para mostrar
+const formatValueForDisplay = (value: any): string => {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'object') {
+    if ('name' in value) return value.name
+    if (Array.isArray(value)) return value.join('; ')
+    return JSON.stringify(value)
+  }
+  return String(value)
+}
+
 export default function AnnotationGrid({
   projectId,
   documentId,
   role,
 }: Props) {
+  const { user } = useAuth()
+  const [editedCells, setEditedCells] = useState<EditedCell[]>([])
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [domains, setDomains] = useState<Domain[]>([])
+
   // data + total count (for pagination)
-  const [data, setData] = useState<AnnotatedMetaphor[]>([])
+  const [data, setData] = useState<any[]>([])
   const [total, setTotal] = useState(0)
 
   // server-side table state
@@ -43,12 +83,225 @@ export default function AnnotationGrid({
   // selection
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
+  // Column visibility state
+  const allColumnDefs = useMemo(() => ([
+    {
+      id: 'select',
+      header: ({ table }: { table: Table<AnnotatedMetaphor> }) => (
+        <input
+          type="checkbox"
+          checked={
+            table.getRowModel().rows.length > 0 &&
+            Array.from(selected).length === table.getRowModel().rows.length
+          }
+          onChange={() => {
+            const allIds = table
+              .getRowModel()
+              .rows.map(r => r.original._id)
+            setSelected(prev => {
+              if (prev.size === allIds.length) return new Set()
+              return new Set(allIds)
+            })
+          }}
+        />
+      ),
+      cell: ({ row }: { row: Row<AnnotatedMetaphor> }) => (
+        <input
+          type="checkbox"
+          checked={selected.has(row.original._id)}
+          onChange={() => {
+            setSelected(prev => {
+              const next = new Set(prev)
+              const id = row.original._id
+              next.has(id) ? next.delete(id) : next.add(id)
+              return next
+            })
+          }}
+        />
+      ),
+      size: 40,
+    },
+    { accessorKey: 'customId', header: 'ID', size: 100 },
+    { accessorKey: 'expression', header: 'Expression', minSize: 200 },
+    { accessorKey: 'section', header: 'Section', size: 100 },
+    { accessorKey: 'subsection', header: 'Subsection', size: 100 },
+    { accessorKey: 'subsubsection', header: 'Subsubsection', size: 100 },
+    { accessorKey: 'page', header: 'Page', size: 80 },
+    { accessorKey: 'triggerWord', header: 'Trigger Word', minSize: 120 },
+    { accessorKey: 'lemma', header: 'Lemma', minSize: 120 },
+    { accessorKey: 'context', header: 'Context', minSize: 200 },
+    {
+      accessorKey: 'contextualMeaning',
+      header: 'Contextual Meaning',
+      minSize: 200,
+    },
+    { accessorKey: 'literalMeaning', header: 'Literal Meaning', minSize: 200 },
+    { accessorKey: 'conceptualMetaphor', header: 'Conceptual', minSize: 200 },
+    {
+      accessorFn: (row: AnnotatedMetaphor) => row.sourceDomain.name,
+      id: 'sourceDomain',
+      header: 'Source Domain',
+      minSize: 150,
+    },
+    {
+      accessorFn: (row: AnnotatedMetaphor) => row.targetDomain.name,
+      id: 'targetDomain',
+      header: 'Target Domain',
+      minSize: 150,
+    },
+    {
+      accessorKey: 'ontologicalMappings',
+      header: 'Ontological Mappings',
+      minSize: 200,
+      cell: ({ getValue }: CellContext<AnnotatedMetaphor, any>) =>
+        (getValue<string[]>() || []).join('; '),
+    },
+    {
+      accessorKey: 'epistemicMappings',
+      header: 'Epistemic Mappings',
+      minSize: 200,
+      cell: ({ getValue }: CellContext<AnnotatedMetaphor, any>) =>
+        (getValue<string[]>() || []).join('; '),
+    },
+    { accessorKey: 'noveltyType', header: 'Novelty Type', size: 120 },
+    { accessorKey: 'functionType', header: 'Function Type', size: 120 },
+    { 
+      accessorKey: 'status', 
+      header: 'Status', 
+      size: 120,
+      cell: ({ row, getValue }: CellContext<AnnotatedMetaphor, any>) => {
+        const value = getValue()
+        const editedCell = editedCells.find(cell => cell.id === row.original._id && cell.field === 'status')
+        const isEdited = !!editedCell
+        const currentValue = editedCell ? editedCell.newValue : value
+
+        return (
+          <div className={`transition-colors duration-200 ${getEditedCellColor(isEdited)}`}>
+            <select
+              value={currentValue || ''}
+              onChange={e => handleCellEdit(row.original._id, 'status', value, e.target.value)}
+              className="w-full border rounded px-2 py-1"
+            >
+              <option value="">Selecciona estado</option>
+              {['under_review', 'approved', 'to_edit', 'discarded', 'metonymy'].map(st => (
+                <option key={st} value={st}>{st.replace('_', ' ').toUpperCase()}</option>
+              ))}
+            </select>
+          </div>
+        )
+      }
+    },
+    {
+      accessorKey: 'comments',
+      header: 'Comments',
+      cell: ({ getValue }: CellContext<AnnotatedMetaphor, any>) =>
+        (getValue<string[]>() || []).join('; '),
+      minSize: 200,
+    },
+    {
+      accessorKey: 'createdAt',
+      header: 'Created At',
+      cell: ({ getValue }: CellContext<AnnotatedMetaphor, any>) =>
+        new Date(getValue<string>()).toLocaleString(),
+      size: 150,
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      size: 400,
+      cell: ({ row }: { row: Row<AnnotatedMetaphor> }) => (
+        <div className="flex gap-1 justify-center w-[380px]">
+          {['approved', 'to_edit', 'discarded', 'metonymy'].map(st => (
+            <button
+              key={st}
+              className="px-2 py-1 bg-primary text-white rounded text-xs hover:bg-primary-dark transition-colors whitespace-nowrap"
+              onClick={() => {
+                handleCellEdit(row.original._id, 'status', row.original.status, st)
+                api.patch(
+                  `/projects/${projectId}/documents/${documentId}/annotations/${row.original._id}`,
+                  { status: st }
+                ).then(() => {
+                  const newPage = pagination.pageIndex
+                  setPagination({ ...pagination, pageIndex: newPage })
+                })
+              }}
+            >
+              {st.replace('_', ' ').toUpperCase()}
+            </button>
+          ))}
+        </div>
+      ),
+    },
+  ]), [projectId, documentId, pagination.pageIndex, selected, editedCells])
+
+  // Column visibility state (except select and actions)
+  const defaultVisible = useMemo(() =>
+    allColumnDefs
+      .filter(col => col.id !== 'select' && col.id !== 'actions' && col.accessorKey !== undefined)
+      .map(col => (col.id || col.accessorKey) as string),
+    [allColumnDefs]
+  )
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultVisible)
+
+  const handleCellEdit = (rowId: string, field: string, originalValue: any, newValue: any) => {
+    // Normalizar valores nulos o undefined
+    const normalizedOriginal = originalValue ?? ''
+    const normalizedNew = newValue ?? ''
+
+    if (areValuesEqual(normalizedOriginal, normalizedNew)) {
+      setEditedCells(prev => prev.filter(cell => !(cell.id === rowId && cell.field === field)))
+      return
+    }
+
+    setEditedCells(prev => {
+      const filtered = prev.filter(cell => !(cell.id === rowId && cell.field === field))
+      return [...filtered, { 
+        id: rowId, 
+        field, 
+        oldValue: normalizedOriginal, 
+        newValue: normalizedNew 
+      }]
+    })
+  }
+
+  const saveChanges = async () => {
+    // Group changes by row ID
+    const changesByRow = editedCells.reduce((acc, cell) => {
+      if (!acc[cell.id]) acc[cell.id] = {}
+      acc[cell.id][cell.field] = cell.newValue
+      return acc
+    }, {} as Record<string, any>)
+
+    // Save each row's changes
+    for (const [id, changes] of Object.entries(changesByRow)) {
+      await api.patch(
+        `/projects/${projectId}/documents/${documentId}/annotations/${id}`,
+        changes
+      )
+    }
+
+    // Clear edited cells and refresh data
+    setEditedCells([])
+    const newPage = pagination.pageIndex
+    setPagination({ ...pagination, pageIndex: newPage })
+    setShowConfirmDialog(false)
+  }
+
+  // Función para obtener el color de fondo según el estado de edición
+  const getEditedCellColor = (isEdited: boolean) => {
+    return isEdited ? 'bg-yellow-100' : ''
+  }
+
+  // Fetch domains for select
+  useEffect(() => {
+    api.get('/domains').then(res => setDomains(res.data))
+  }, [])
+
   // fetch any time pageIndex, pageSize, sorting or filters change
   useEffect(() => {
     const fetchData = async () => {
-      console.log('[AnnotationGrid] fetchPage: filters=', filters, 'sorting=', sorting);
       const res = await api.get<{
-        data: AnnotatedMetaphor[]
+        data: any[]
         total: number
       }>(
         `/projects/${projectId}/documents/${documentId}/annotations`,
@@ -64,116 +317,148 @@ export default function AnnotationGrid({
           },
         }
       )
-      setData(res.data.data)
+      // Normalizar datos
+      const normalized = res.data.data.map(row => ({
+        ...row,
+        section: row.location?.section ?? '',
+        subsection: row.location?.subsection ?? '',
+        page: row.location?.page ?? '',
+        sourceDomain: row.sourceDomain ?? { _id: '', name: '' },
+        targetDomain: row.targetDomain ?? { _id: '', name: '' },
+        comments: Array.isArray(row.comments) ? row.comments : (row.comments ? [row.comments] : []),
+      }))
+      setData(normalized)
       setTotal(res.data.total)
     }
     fetchData()
   }, [projectId, documentId, pagination, sorting, filters])
 
-  // column definitions
-  const columns = useMemo<ColumnDef<AnnotatedMetaphor>[]>(
-    () => [
-      {
-        id: 'select',
-        header: ({ table }) => (
-          <input
-            type="checkbox"
-            checked={
-              table.getRowModel().rows.length > 0 &&
-              Array.from(selected).length === table.getRowModel().rows.length
-            }
-            onChange={() => {
-              const allIds = table
-                .getRowModel()
-                .rows.map(r => r.original._id)
-              setSelected(prev => {
-                if (prev.size === allIds.length) return new Set()
-                return new Set(allIds)
-              })
-            }}
-          />
-        ),
-        cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={selected.has(row.original._id)}
-            onChange={() => {
-              setSelected(prev => {
-                const next = new Set(prev)
-                const id = row.original._id
-                next.has(id) ? next.delete(id) : next.add(id)
-                return next
-              })
-            }}
-          />
-        ),
-      },
-      { accessorKey: 'customId', header: 'ID' },
-      { accessorKey: 'expression', header: 'Expression' },
-      { accessorKey: 'section', header: 'Section' },
-      { accessorKey: 'subsection', header: 'Subsection' },
-      { accessorKey: 'page', header: 'Page' },
-      { accessorKey: 'triggerWord', header: 'Trigger Word' },
-      { accessorKey: 'lemma', header: 'Lemma' },
-      {
-        accessorKey: 'contextualMeaning',
-        header: 'Contextual Meaning',
-      },
-      { accessorKey: 'literalMeaning', header: 'Literal Meaning' },
-      { accessorKey: 'conceptualMetaphor', header: 'Conceptual' },
-      {
-        accessorFn: row => row.sourceDomain.name,
-        id: 'sourceDomain',
-        header: 'Source Domain',
-      },
-      {
-        accessorFn: row => row.targetDomain.name,
-        id: 'targetDomain',
-        header: 'Target Domain',
-      },
-      { accessorKey: 'noveltyType', header: 'Novelty Type' },
-      { accessorKey: 'functionType', header: 'Function Type' },
-      { accessorKey: 'status', header: 'Status' },
-      {
-        accessorKey: 'comments',
-        header: 'Comments',
-        cell: ({ getValue }) =>
-          (getValue<string[]>() || []).join('; '),
-      },
-      {
-        accessorKey: 'createdAt',
-        header: 'Created At',
-        cell: ({ getValue }) =>
-          new Date(getValue<string>()).toLocaleString(),
-      },
-      {
-        id: 'actions',
-        header: 'Actions',
-        cell: ({ row }) => (
-          <div className="flex gap-1">
-            {['approved', 'to_edit', 'discarded', 'metonymy'].map(st => (
-              <button
-                key={st}
-                className="px-2 py-1 bg-gray-200 rounded text-xs"
-                onClick={async () => {
-                  await api.patch(
-                    `/projects/${projectId}/documents/${documentId}/annotations/${row.original._id}`,
-                    { status: st }
-                  )
-                  // re-fetch
-                  const newPage = pagination.pageIndex
-                  setPagination({ ...pagination, pageIndex: newPage })
-                }}
-              >
-                {st.replace('_', ' ').toUpperCase()}
-              </button>
-            ))}
-          </div>
-        ),
-      },
-    ],
-    [projectId, documentId, pagination.pageIndex, selected]
-  )
+  // Columns to render
+  const columns = useMemo<ColumnDef<any>[]>(() => {
+    const selectCol = allColumnDefs.find(col => col.id === 'select')
+    const actionCol = allColumnDefs.find(col => col.id === 'actions')
+    const editableCols = allColumnDefs
+      .filter(col => col.id !== 'select' && col.id !== 'actions')
+      .filter(col => {
+        const key = (col.id || col.accessorKey) as string
+        return visibleColumns.includes(key)
+      })
+      .map(col => ({
+        ...col,
+        cell: ({ row, getValue, column }: CellContext<any, any>) => {
+          let colKey = column.id
+          if (!colKey && column.columnDef && 'accessorKey' in column.columnDef && typeof column.columnDef.accessorKey === 'string') {
+            colKey = column.columnDef.accessorKey
+          }
+
+          const originalValue = row.original[colKey]
+          const editedCell = editedCells.find(cell => cell.id === row.original._id && cell.field === colKey)
+          const isEdited = !!editedCell
+          const currentValue = editedCell ? editedCell.newValue : originalValue
+
+          // Campos con texto largo
+          const isLongContent = [
+            'expression', 
+            'contextualMeaning', 
+            'literalMeaning', 
+            'conceptualMetaphor', 
+            'comments',
+            'context',
+            'ontologicalMappings',
+            'epistemicMappings'
+          ].includes(colKey);
+
+          if (isLongContent) {
+            const isArray = Array.isArray(currentValue);
+            const displayValue = isArray ? currentValue.join('\n') : currentValue;
+
+            return (
+              <div className={`transition-colors duration-200 ${getEditedCellColor(isEdited)}`}>
+                <div
+                  contentEditable
+                  suppressContentEditableWarning
+                  onBlur={e => {
+                    const newValue = e.currentTarget.textContent;
+                    if (isArray) {
+                      handleCellEdit(
+                        row.original._id, 
+                        colKey, 
+                        originalValue, 
+                        newValue ? newValue.split('\n').map(s => s.trim()).filter(Boolean) : []
+                      );
+                    } else {
+                      handleCellEdit(row.original._id, colKey, originalValue, newValue);
+                    }
+                  }}
+                  className="w-full min-h-[24px] focus:outline-none focus:ring-1 focus:ring-primary p-1 rounded whitespace-pre-wrap break-words"
+                >
+                  {displayValue || ''}
+                </div>
+              </div>
+            )
+          }
+
+          // Select para dominios
+          if (colKey === 'sourceDomain' || colKey === 'targetDomain') {
+            const domainId = typeof currentValue === 'object' ? currentValue._id : currentValue
+            return (
+              <div className={`transition-colors duration-200 ${getEditedCellColor(isEdited)}`}>
+                <select
+                  value={domainId || ''}
+                  onChange={e => {
+                    const selectedDomain = domains.find(d => d._id === e.target.value) || { _id: '', name: '' }
+                    handleCellEdit(row.original._id, colKey, originalValue, selectedDomain)
+                  }}
+                  className="w-full border rounded px-2 py-1"
+                >
+                  <option value="">Selecciona dominio</option>
+                  {domains.map(d => (
+                    <option key={d._id} value={d._id}>{d.name}</option>
+                  ))}
+                </select>
+                <div className="text-xs text-gray-500 mt-1 break-words">
+                  {typeof currentValue === 'object' ? currentValue.name : domains.find(d => d._id === currentValue)?.name || ''}
+                </div>
+              </div>
+            )
+          }
+
+          // Select para enums
+          if (colKey === 'noveltyType' || colKey === 'functionType') {
+            return (
+              <div className={`transition-colors duration-200 ${getEditedCellColor(isEdited)}`}>
+                <select
+                  value={currentValue || ''}
+                  onChange={e => handleCellEdit(row.original._id, colKey, originalValue, e.target.value)}
+                  className="w-full border rounded px-2 py-1"
+                >
+                  <option value="">Selecciona opción</option>
+                  {colKey === 'noveltyType' && ['novel/creative', 'conventional', 'lexicalized', 'fossilized'].map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                  {colKey === 'functionType' && ['structural', 'ontological', 'orientational'].map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            )
+          }
+
+          // Input para el resto de campos
+          return (
+            <div className={`transition-colors duration-200 ${getEditedCellColor(isEdited)}`}>
+              <input
+                type="text"
+                value={currentValue || ''}
+                onChange={e => handleCellEdit(row.original._id, colKey, originalValue, e.target.value)}
+                className="w-full border-none focus:ring-1 focus:ring-primary bg-transparent"
+              />
+            </div>
+          )
+        },
+      }))
+    return [selectCol, ...editableCols, actionCol].filter(Boolean) as ColumnDef<any>[]
+  }, [allColumnDefs, visibleColumns, editedCells, domains])
 
   // build the table instance
   const table = useReactTable({
@@ -194,12 +479,92 @@ export default function AnnotationGrid({
   })
 
   return (
-    <div>
+    <div className="w-full">
+      {/* Column Visibility Panel */}
+      <div className="mb-4 p-4 border rounded-md bg-white shadow-sm">
+        <h3 className="text-sm font-medium mb-2">Columnas visibles:</h3>
+        <div className="flex flex-wrap gap-2">
+          {allColumnDefs
+            .filter(col => col.id !== 'select' && col.id !== 'actions')
+            .map(col => {
+              const key = (col.id || col.accessorKey) as string
+              return (
+                <label key={key} className="flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns.includes(key)}
+                    onChange={e => {
+                      if (e.target.checked) {
+                        setVisibleColumns([...visibleColumns, key])
+                      } else {
+                        setVisibleColumns(visibleColumns.filter(k => k !== key))
+                      }
+                    }}
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span className="text-sm">{col.header?.toString() || key}</span>
+                </label>
+              )
+            })}
+        </div>
+      </div>
+
+      {/* Save Changes Button */}
+      {editedCells.length > 0 && (
+        <div className="mb-4">
+          <button
+            onClick={() => setShowConfirmDialog(true)}
+            className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark transition-colors"
+          >
+            Guardar cambios ({editedCells.length})
+          </button>
+        </div>
+      )}
+
+      {/* Confirm Dialog */}
+      {showConfirmDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full mx-4">
+            <h3 className="text-lg font-medium mb-4">¿Confirmar cambios?</h3>
+            <p className="mb-4">
+              Se guardarán los siguientes cambios:
+            </p>
+            <div className="max-h-60 overflow-y-auto mb-4">
+              {editedCells.map((cell, i) => (
+                <div key={i} className="mb-2 p-2 bg-gray-50 rounded">
+                  <div className="font-medium">Campo: {cell.field}</div>
+                  <div className="text-red-500 line-through">
+                    Antes: {formatValueForDisplay(cell.oldValue)}
+                  </div>
+                  <div className="text-green-500">
+                    Después: {formatValueForDisplay(cell.newValue)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowConfirmDialog(false)}
+                className="px-4 py-2 border rounded hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={saveChanges}
+                className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark transition-colors"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filters & Bulk Actions */}
-      <div className="flex gap-4 mb-4 flex-wrap">
+      <div className="flex gap-4 mb-6 flex-wrap items-center w-full">
         <input
-          placeholder="Search…"
-          className="border px-2 rounded"
+          placeholder="Search..."
+          className="border px-3 py-1.5 rounded-md focus:outline-none focus:ring-1 focus:ring-primary min-w-[200px]"
           onChange={e =>
             setFilters(f => ({ ...f, search: e.target.value }))
           }
@@ -208,7 +573,7 @@ export default function AnnotationGrid({
           onChange={e =>
             setFilters(f => ({ ...f, status: e.target.value }))
           }
-          className="border px-2 rounded"
+          className="border px-3 py-1.5 rounded-md focus:outline-none focus:ring-1 focus:ring-primary min-w-[150px]"
         >
           <option value="">All Status</option>
           {['under_review', 'approved', 'to_edit', 'discarded', 'metonymy'].map(
@@ -223,7 +588,7 @@ export default function AnnotationGrid({
           onChange={e =>
             setFilters(f => ({ ...f, noveltyType: e.target.value }))
           }
-          className="border px-2 rounded"
+          className="border px-3 py-1.5 rounded-md focus:outline-none focus:ring-1 focus:ring-primary min-w-[150px]"
         >
           <option value="">All Novelty</option>
           {['novel/creative', 'conventional', 'lexicalized', 'fossilized'].map(
@@ -237,7 +602,7 @@ export default function AnnotationGrid({
 
         {role === 'editor' && selected.size > 0 && (
           <button
-            className="px-3 py-1 bg-blue-600 text-white rounded"
+            className="px-4 py-1.5 bg-primary text-white rounded-md hover:bg-blue-700 transition ml-auto"
             onClick={async () => {
               await api.post(
                 `/projects/${projectId}/documents/${documentId}/annotations/bulk-update`,
@@ -247,108 +612,104 @@ export default function AnnotationGrid({
                 }
               )
               setSelected(new Set())
-              // force reload
-              setPagination(p => ({ ...p, pageIndex: p.pageIndex }))
+              const newPage = pagination.pageIndex
+              setPagination({ ...pagination, pageIndex: newPage })
             }}
           >
             Approve Selected ({selected.size})
           </button>
         )}
-
-        <button
-          className="px-3 py-1 bg-green-600 text-white rounded"
-          onClick={() =>
-            window.open(
-              `/projects/${projectId}/documents/${documentId}/annotations/export?` +
-                new URLSearchParams({
-                  ...(filters.search && { search: filters.search }),
-                  ...(filters.status && { status: filters.status }),
-                  ...(filters.noveltyType && { noveltyType: filters.noveltyType }),
-                })
-            )
-          }
-        >
-          Export Excel
-        </button>
       </div>
 
-      {/* The Table */}
-      <table className="min-w-full border-collapse">
-        <thead className="bg-gray-100">
-          {table.getHeaderGroups().map(headerGroup => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map(header => (
-                <th
-                  key={header.id}
-                  className="px-2 py-1 text-left text-sm"
-                  onClick={header.column.getToggleSortingHandler()}
-                >
-                  {flexRender(
-                    header.column.columnDef.header,
-                    header.getContext()
-                  )}
-                  {{
-                    asc: ' 🔼',
-                    desc: ' 🔽',
-                  }[header.column.getIsSorted() as string] ?? null}
-                </th>
+      {/* Table Container with fixed height and scroll */}
+      <div className="mt-4 border rounded-lg">
+        <div className="max-h-[600px] overflow-y-auto">
+          <table className="w-full border-collapse">
+            <thead className="sticky top-0 bg-gray-50 z-10">
+              {table.getHeaderGroups().map(headerGroup => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map(header => (
+                    <th
+                      key={header.id}
+                      className="px-4 py-2 text-center text-sm font-medium text-gray-900 border-b select-none bg-gray-50"
+                      style={{
+                        width: header.getSize(),
+                        minWidth: header.column.columnDef.minSize,
+                      }}
+                    >
+                      <div className="flex items-center justify-center">
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                      </div>
+                    </th>
+                  ))}
+                </tr>
               ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map(row => (
-            <tr
-              key={row.id}
-              className={`${
-                row.original.status === 'approved'
-                  ? 'bg-green-50'
-                  : ''
-              }`}
-            >
-              {row.getVisibleCells().map(cell => (
-                <td key={cell.id} className="px-2 py-1 text-sm">
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              {table.getRowModel().rows.map(row => (
+                <tr key={row.id} className="hover:bg-gray-50 group">
+                  {row.getVisibleCells().map(cell => {
+                    const isLongContent = cell.column.columnDef.id === 'expression' ||
+                      cell.column.columnDef.id === 'contextualMeaning' ||
+                      cell.column.columnDef.id === 'literalMeaning' ||
+                      cell.column.columnDef.id === 'conceptualMetaphor' ||
+                      cell.column.columnDef.id === 'comments';
 
-      {/* Pagination Controls */}
-      <div className="flex justify-between items-center mt-4">
-        <button
-          onClick={() =>
-            setPagination(p => ({
-              ...p,
-              pageIndex: Math.max(p.pageIndex - 1, 0),
-            }))
-          }
-          disabled={!table.getCanPreviousPage()}
-          className="px-2 py-1 bg-gray-200 rounded disabled:opacity-50"
-        >
-          Previous
-        </button>
-        <span className="text-sm">
-          Page {pagination.pageIndex + 1} of{' '}
-          {Math.max(table.getPageCount(), 1)}
-        </span>
-        <button
-          onClick={() =>
-            setPagination(p => ({
-              ...p,
-              pageIndex: Math.min(
-                p.pageIndex + 1,
-                table.getPageCount() - 1
-              ),
-            }))
-          }
-          disabled={!table.getCanNextPage()}
-          className="px-2 py-1 bg-gray-200 rounded disabled:opacity-50"
-        >
-          Next
-        </button>
+                    return (
+                      <td
+                        key={cell.id}
+                        className={`px-4 py-2 text-sm text-gray-900 border-b align-top group-hover:bg-gray-50`}
+                        style={{
+                          width: cell.column.getSize(),
+                          minWidth: cell.column.columnDef.minSize,
+                          maxWidth: cell.column.getSize(),
+                        }}
+                      >
+                        <div className={`${isLongContent ? 'whitespace-pre-wrap break-words' : 'whitespace-normal'}`}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between mt-4 text-sm w-full">
+        <div className="flex items-center gap-2">
+          <span>
+            Page {pagination.pageIndex + 1} of{' '}
+            {Math.ceil(total / pagination.pageSize)}
+          </span>
+          <span className="text-gray-500">
+            ({total} total items)
+          </span>
+        </div>
+        <div className="flex gap-2">
+          <button
+            className="px-3 py-1 border rounded-md hover:bg-gray-50 disabled:opacity-50"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Previous
+          </button>
+          <button
+            className="px-3 py-1 border rounded-md hover:bg-gray-50 disabled:opacity-50"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   )
