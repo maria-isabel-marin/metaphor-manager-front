@@ -20,6 +20,7 @@ export default function ProjectModal({
   const [description, setDescription] = useState('')
   const [contactEmail, setContactEmail] = useState('')
   const [notes, setNotes] = useState('')
+  const [reviewerEmails, setReviewerEmails] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   if (!isOpen) return null
@@ -30,16 +31,21 @@ export default function ProjectModal({
       alert('Name and Contact Email are required.')
       return
     }
+
+    // Parse reviewer emails
+    const reviewers = reviewerEmails
+      .split(',')
+      .map(email => email.trim())
+      .filter(email => email.length > 0 && email.includes('@'))
+
     setSubmitting(true)
     try {
-      // **AHORA** enviamos el mismo body que el form de NewProjectPage,
-      // + la propiedad "responsible" con user.name
       const { data } = await api.post<Project>('/projects', {
         name,
         description,
         contactEmail,
         notes,
-        responsible: user?.name ?? user?.email, 
+        reviewerEmails: reviewers,
       })
       onCreated(data)
       onClose()
@@ -95,6 +101,20 @@ export default function ProjectModal({
               required
               className="w-full border rounded px-3 py-2"
             />
+          </div>
+
+          {/* Reviewer Emails */}
+          <div>
+            <label className="block mb-1 font-medium">Reviewer Emails</label>
+            <textarea
+              value={reviewerEmails}
+              onChange={e => setReviewerEmails(e.target.value)}
+              placeholder="Enter reviewer emails separated by commas"
+              className="w-full border rounded px-3 py-2 h-20"
+            />
+            <p className="text-sm text-gray-500 mt-1">
+              Enter email addresses separated by commas
+            </p>
           </div>
 
           {/* Notes */}
