@@ -1,5 +1,5 @@
 // src/types/document.ts
-export type DocumentStatus = 'draft' | 'published';
+export type DocumentStatus = 'draft' | 'in_review' | 'reviewed' | 'published';
 
 // front/src/types/document.ts
 export interface Document {
@@ -8,6 +8,7 @@ export interface Document {
   createdBy: string
 
   title: string
+  description?: string
   type: string
   language: string
   notes?: string

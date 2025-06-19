@@ -6,6 +6,7 @@ import { Project } from '@/types/project'
 interface ProjectCardProps {
   project: Project
   onDelete?: (id: string) => void
+  onEdit?: () => void
   onView?: () => void
   isReviewer?: boolean
 }
@@ -13,6 +14,7 @@ interface ProjectCardProps {
 export default function ProjectCard({
   project,
   onDelete,
+  onEdit,
   onView,
   isReviewer = false,
 }: ProjectCardProps) {
@@ -63,27 +65,25 @@ export default function ProjectCard({
         )}
       </div>
 
-      <div className="px-4 pb-4 flex items-center justify-between text-sm text-gray-500">
-        {onView ? (
+      <div className="px-4 py-3 bg-gray-50 border-t flex items-center justify-center gap-2">
+        <button
+          onClick={onView}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          View
+        </button>
+        {!isReviewer && onEdit && (
           <button
-            onClick={onView}
-            className="hover:text-indigo-600 focus:outline-none"
+            onClick={onEdit}
+            className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
-            View
+            Edit
           </button>
-        ) : (
-          <Link
-            href={`/projects/${project._id}/documents`}
-            className="hover:text-indigo-600"
-          >
-            View
-          </Link>
         )}
-
-        {onDelete && (
+        {!isReviewer && onDelete && (
           <button
             onClick={() => onDelete(project._id)}
-            className="hover:text-red-600 focus:outline-none"
+            className="px-4 py-2 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
           >
             Delete
           </button>

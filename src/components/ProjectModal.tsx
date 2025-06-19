@@ -1,5 +1,5 @@
 // src/components/ProjectModal.tsx
-import { FormEvent, useState } from 'react'
+import { FormEvent, useState, useEffect } from 'react'
 import api from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { Project } from '@/types/project'
@@ -7,15 +7,17 @@ import { Project } from '@/types/project'
 interface ProjectModalProps {
   isOpen: boolean
   onClose: () => void
-  onCreated: (project: Project) => void
+  onSaved: (project: Project) => void
+  project?: Project | null
 }
 
 export default function ProjectModal({
   isOpen,
   onClose,
-  onCreated,
+  onSaved,
+  project = null,
 }: ProjectModalProps) {
-  const { user } = useAuth()                  // trae { id, name, email }
+  const { user } = useAuth()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [contactEmail, setContactEmail] = useState('')
@@ -23,35 +25,66 @@ export default function ProjectModal({
   const [reviewerEmails, setReviewerEmails] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  const isEditing = project !== null
+
+  useEffect(() => {
+    if (isOpen && isEditing) {
+      setName(project.name)
+      setDescription(project.description)
+      setContactEmail(project.contactEmail || '')
+      setNotes(project.notes || '')
+      setReviewerEmails(
+        Array.isArray(project.reviewers)
+          ? project.reviewers
+              .map(r => (typeof r === 'object' ? r.email : r))
+              .join(', ')
+          : ''
+      )
+    } else {
+      // Reset form when modal opens for creation or is closed
+      setName('')
+      setDescription('')
+      setContactEmail('')
+      setNotes('')
+      setReviewerEmails('')
+    }
+  }, [isOpen, project, isEditing])
+
   if (!isOpen) return null
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !contactEmail.trim()) {
-      alert('Name and Contact Email are required.')
+    if (!name.trim()) {
+      alert('Project name is required.')
       return
     }
 
-    // Parse reviewer emails
     const reviewers = reviewerEmails
       .split(',')
       .map(email => email.trim())
       .filter(email => email.length > 0 && email.includes('@'))
 
+    const payload = {
+      name,
+      description,
+      contactEmail,
+      notes,
+      reviewerEmails: reviewers,
+    }
+
     setSubmitting(true)
     try {
-      const { data } = await api.post<Project>('/projects', {
-        name,
-        description,
-        contactEmail,
-        notes,
-        reviewerEmails: reviewers,
-      })
-      onCreated(data)
+      let response
+      if (isEditing) {
+        response = await api.patch<Project>(`/projects/${project._id}`, payload)
+      } else {
+        response = await api.post<Project>('/projects', payload)
+      }
+      onSaved(response.data)
       onClose()
     } catch (err: any) {
       console.error(err.response || err)
-      alert(err.response?.data?.message || 'Failed to create project.')
+      alert(err.response?.data?.message || 'Failed to save project.')
     } finally {
       setSubmitting(false)
     }
@@ -60,7 +93,9 @@ export default function ProjectModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
       <div className="bg-white rounded-lg w-full max-w-md p-6">
-        <h2 className="text-xl font-semibold mb-4">New Project</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          {isEditing ? 'Edit Project' : 'New Project'}
+        </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name */}
           <div>
@@ -87,18 +122,17 @@ export default function ProjectModal({
           <div>
             <label className="block mb-1 font-medium">Owner</label>
             <div className="w-full border rounded px-3 py-2 bg-gray-100 text-gray-700">
-              {user?.name || user?.email || '—'}
+              {isEditing ? (project.owner as any)?.email : (user?.name || user?.email || '—')}
             </div>
           </div>
 
           {/* Contact Email */}
           <div>
-            <label className="block mb-1 font-medium">Contact Email *</label>
+            <label className="block mb-1 font-medium">Contact Email</label>
             <input
               type="email"
               value={contactEmail}
               onChange={e => setContactEmail(e.target.value)}
-              required
               className="w-full border rounded px-3 py-2"
             />
           </div>
@@ -140,9 +174,9 @@ export default function ProjectModal({
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark disabled:opacity-50"
             >
-              {submitting ? 'Saving…' : 'Save'}
+              {submitting ? 'Saving…' : 'Save Project'}
             </button>
           </div>
         </form>

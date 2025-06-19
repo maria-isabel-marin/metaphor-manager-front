@@ -1,12 +1,14 @@
 // src/components/DocumentModal.tsx
-import { useState, ChangeEvent, FormEvent } from 'react'
+import { FormEvent, useState, useEffect } from 'react'
 import api from '@/lib/api'
+import { Document } from '@/types/document'
 
 interface DocumentModalProps {
-  projectId: string
   isOpen: boolean
   onClose: () => void
-  onCreated: () => void
+  onSaved: (document: Document) => void
+  projectId: string
+  document?: Document // Optional for edit mode
 }
 
 const TYPE_OPTIONS = [
@@ -26,75 +28,82 @@ const TYPE_OPTIONS = [
 const LANGUAGE_OPTIONS = ['English', 'Spanish']
 
 export default function DocumentModal({
-  projectId,
   isOpen,
   onClose,
-  onCreated,
+  onSaved,
+  projectId,
+  document,
 }: DocumentModalProps) {
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
   const [type, setType] = useState('')
   const [language, setLanguage] = useState('')
-  const [notes, setNotes] = useState('')
-  const [filePdf, setFilePdf] = useState<File | null>(null)
-  const [fileTxt, setFileTxt] = useState<File | null>(null)
+  const [file, setFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [fileError, setFileError] = useState<string | null>(null)
+
+  // Load document data when editing
+  useEffect(() => {
+    if (document) {
+      setTitle(document.title)
+      setDescription(document.description || '')
+      setType(document.type)
+      setLanguage(document.language)
+    } else {
+      // Reset form when creating new
+      setTitle('')
+      setDescription('')
+      setType('')
+      setLanguage('')
+      setFile(null)
+    }
+  }, [document])
 
   if (!isOpen) return null
 
-  const validate = (): boolean => {
-    if (!title.trim() || !type || !language) {
-      alert('Title, Type and Language are required.')
-      return false
-    }
-    if ((filePdf && fileTxt) || (!filePdf && !fileTxt)) {
-      setFileError('Please upload exactly one file: either PDF or TXT.')
-      return false
-    }
-    setFileError(null)
-    return true
-  }
-
-  const handlePdfChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setFilePdf(e.target.files?.[0] || null)
-  }
-
-  const handleTxtChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setFileTxt(e.target.files?.[0] || null)
-  }
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!validate()) return
+    if (!title.trim()) {
+      alert('Title is required.')
+      return
+    }
 
     setSubmitting(true)
-    const formData = new FormData()
-    formData.append('title', title)
-    formData.append('type', type)
-    formData.append('language', language)
-    formData.append('notes', notes)
-    if (filePdf) formData.append('filePdf', filePdf)
-    if (fileTxt) formData.append('fileTxt', fileTxt)
-
     try {
-      await api.post(`/projects/${projectId}/documents`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
-      alert('Document uploaded successfully.')
-      onCreated()
+      const formData = new FormData()
+      formData.append('title', title)
+      formData.append('description', description)
+      formData.append('type', type)
+      formData.append('language', language)
+      formData.append('projectId', projectId)
+      if (file) {
+        formData.append('file', file)
+      }
+
+      let response
+      if (document) {
+        // Update existing document
+        response = await api.patch<Document>(`/documents/${document._id}`, formData)
+      } else {
+        // Create new document
+        response = await api.post<Document>('/documents', formData)
+      }
+
+      onSaved(response.data)
       onClose()
-    } catch (err) {
-      console.error(err)
-      alert('Error saving document. Please try again.')
+    } catch (err: any) {
+      console.error(err.response || err)
+      alert(err.response?.data?.message || 'Failed to save document.')
     } finally {
       setSubmitting(false)
     }
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
       <div className="bg-white rounded-lg w-full max-w-md p-6">
-        <h2 className="text-xl font-semibold mb-4">New Document</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          {document ? 'Edit Document' : 'New Document'}
+        </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Title */}
           <div>
@@ -107,76 +116,75 @@ export default function DocumentModal({
             />
           </div>
 
+          {/* Description */}
+          <div>
+            <label className="block mb-1 font-medium">Description</label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              className="w-full border rounded px-3 py-2 h-20"
+            />
+          </div>
+
           {/* Type */}
           <div>
-            <label className="block mb-1 font-medium">Type *</label>
+            <label className="block mb-1 font-medium">Type</label>
             <select
               value={type}
               onChange={e => setType(e.target.value)}
-              required
-              className="w-full border rounded px-3 py-2 bg-white"
+              className="w-full border rounded px-3 py-2"
             >
-              <option value="">Select type…</option>
-              {TYPE_OPTIONS.map(opt => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
+              <option value="">Select type...</option>
+              <option value="Legal">Legal</option>
+              <option value="Policy">Policy</option>
+              <option value="Academic">Academic</option>
+              <option value="Other">Other</option>
             </select>
           </div>
 
           {/* Language */}
           <div>
-            <label className="block mb-1 font-medium">Language *</label>
+            <label className="block mb-1 font-medium">Language</label>
             <select
               value={language}
               onChange={e => setLanguage(e.target.value)}
-              required
-              className="w-full border rounded px-3 py-2 bg-white"
+              className="w-full border rounded px-3 py-2"
             >
-              <option value="">Select language…</option>
-              {LANGUAGE_OPTIONS.map(lang => (
-                <option key={lang} value={lang}>
-                  {lang}
-                </option>
-              ))}
+              <option value="">Select language...</option>
+              <option value="English">English</option>
+              <option value="Spanish">Spanish</option>
+              <option value="French">French</option>
+              <option value="Other">Other</option>
             </select>
           </div>
 
-          {/* Notes */}
-          <div>
-            <label className="block mb-1 font-medium">Notes</label>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              className="w-full border rounded px-3 py-2 h-20"
-            />
-          </div>
-
-          {/* File Inputs */}
-          <div>
-            <label className="block mb-1 font-medium">PDF File</label>
-            <input type="file" accept=".pdf" onChange={handlePdfChange} />
-          </div>
-          <div>
-            <label className="block mb-1 font-medium">TXT File</label>
-            <input type="file" accept=".txt" onChange={handleTxtChange} />
-          </div>
-          {fileError && <p className="text-red-600">{fileError}</p>}
+          {/* File upload (only for new documents) */}
+          {!document && (
+            <div>
+              <label className="block mb-1 font-medium">File</label>
+              <input
+                type="file"
+                onChange={e => setFile(e.target.files?.[0] || null)}
+                accept=".txt,.pdf"
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex justify-end space-x-2 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+              disabled={submitting}
+              className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
             >
               {submitting ? 'Saving…' : 'Save'}
             </button>

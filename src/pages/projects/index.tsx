@@ -19,6 +19,7 @@ export default function ProjectsIndexPage() {
   const [reviewingProjects, setReviewingProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingProject, setEditingProject] = useState<Project | null>(null)
   const { logout } = useAuth()
   const router = useRouter()
 
@@ -34,8 +35,29 @@ export default function ProjectsIndexPage() {
 
   useEffect(() => { loadProjects() }, [loadProjects])
 
+  const handleOpenEditModal = (project: Project) => {
+    setEditingProject(project)
+    setIsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setEditingProject(null)
+  }
+
+  const handleSaveProject = (savedProject: Project) => {
+    if (editingProject) {
+      // Update existing project
+      setOwnedProjects(prev => prev.map(p => p._id === savedProject._id ? savedProject : p))
+    } else {
+      // Add new project
+      setOwnedProjects(prev => [savedProject, ...prev])
+    }
+    handleCloseModal()
+  }
+
   const handleDelete = (id: string) => {
-    if (!confirm('Delete this project?')) return
+    if (!confirm('Are you sure you want to delete this project?')) return
     api.delete(`/projects/${id}`).then(() =>
       setOwnedProjects(curr => curr.filter(p => p._id !== id))
     )
@@ -44,12 +66,13 @@ export default function ProjectsIndexPage() {
   const renderProjectsSection = (title: string, projects: Project[], isReviewer = false) => (
     <div className="space-y-4">
       <h2 className="text-xl font-semibold">{title}</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {projects.map(p => (
           <ProjectCard
             key={p._id}
             project={p}
             onDelete={!isReviewer ? handleDelete : undefined}
+            onEdit={!isReviewer ? () => handleOpenEditModal(p) : undefined}
             onView={() => router.push(`/projects/${p._id}/documents`)}
             isReviewer={isReviewer}
           />
@@ -73,11 +96,9 @@ export default function ProjectsIndexPage() {
 
         <ProjectModal
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onCreated={proj => {
-            setOwnedProjects(curr => [proj, ...curr])
-            setIsModalOpen(false)
-          }}
+          onClose={handleCloseModal}
+          onSaved={handleSaveProject}
+          project={editingProject}
         />
 
         {loading ? (

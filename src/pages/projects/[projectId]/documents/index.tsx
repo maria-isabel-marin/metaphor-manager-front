@@ -6,7 +6,6 @@ import api from '@/lib/api'
 import Layout from '@/components/Layout'
 import DocumentCard from '@/components/DocumentCard'
 import AnnotationUploadModal from '@/components/AnnotationUploadModal'
-
 import DocumentModal from '@/components/DocumentModal'
 import { Document } from '@/types/document'
 import Breadcrumb from '@/components/Breadcrumb'
@@ -25,9 +24,10 @@ export default function ProjectDocumentsPage() {
   const [project, setProject] = useState<{ name: string; description: string } | null>(null)
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedDocument, setSelectedDocument] = useState<Document | undefined>(undefined)
 
-  // controls New Document modal
-  const [isNewDocOpen, setIsNewDocOpen] = useState(false)
+  // controls Document modal
+  const [isDocModalOpen, setIsDocModalOpen] = useState(false)
 
   // controls Upload Annotations modal
   const [uploadDocId, setUploadDocId] = useState<string | null>(null)
@@ -39,7 +39,7 @@ export default function ProjectDocumentsPage() {
       .then(res => setProject(res.data))
       .catch(() => setProject(null))
 
-    api.get<Document[]>(`/projects/${projectId}/documents`)
+    api.get<Document[]>(`/documents/project/${projectId}`)
       .then(res => setDocuments(res.data))
       .finally(() => setLoading(false))
   }, [projectId])
@@ -48,21 +48,43 @@ export default function ProjectDocumentsPage() {
     loadAll()
   }, [loadAll])
 
+  const handleEditDocument = (document: Document) => {
+    setSelectedDocument(document)
+    setIsDocModalOpen(true)
+  }
+
+  const handleDeleteDocument = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this document?')) return
+    
+    try {
+      await api.delete(`/documents/${id}`)
+      loadAll()
+    } catch (error) {
+      console.error('Error deleting document:', error)
+      alert('Failed to delete document')
+    }
+  }
+
   return (
     <Layout breadcrumb={<Breadcrumb items={[
       { label: 'Projects', href: '/projects' },
-      { label: 'Project', href: `/projects/${projectId}/documents` },
+      { label: project?.name || 'Project', href: `/projects/${projectId}/documents` },
       { label: 'Documents' }
     ]} />}>
-      {/** New‐Document modal **/}
+      {/** Document modal (new/edit) **/}
       <DocumentModal
         projectId={projectId!}
-        isOpen={isNewDocOpen}
-        onClose={() => setIsNewDocOpen(false)}
-        onCreated={() => {
-          setIsNewDocOpen(false)
+        isOpen={isDocModalOpen}
+        onClose={() => {
+          setIsDocModalOpen(false)
+          setSelectedDocument(undefined)
+        }}
+        onSaved={() => {
+          setIsDocModalOpen(false)
+          setSelectedDocument(undefined)
           loadAll()
         }}
+        document={selectedDocument}
       />
 
       {/** Upload‐Annotations modal **/}
@@ -91,7 +113,7 @@ export default function ProjectDocumentsPage() {
         {/** action bar **/}
         <div className="flex flex-wrap justify-between items-center w-full">
           <button
-            onClick={() => setIsNewDocOpen(true)}
+            onClick={() => setIsDocModalOpen(true)}
             className="px-4 py-2 bg-primary text-white rounded-lg transition hover:bg-blue-700"
           >
             + New Document
@@ -121,7 +143,9 @@ export default function ProjectDocumentsPage() {
               <DocumentCard
                 key={doc._id}
                 document={doc}
-                onDeleted={loadAll}
+                onEdit={() => handleEditDocument(doc)}
+                onDelete={handleDeleteDocument}
+                onView={() => router.push(`/projects/${projectId}/documents/${doc._id}/annotations`)}
                 onUpload={() => setUploadDocId(doc._id)}
               />
             ))}
