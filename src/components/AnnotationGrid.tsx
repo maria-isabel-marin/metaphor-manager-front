@@ -33,6 +33,11 @@ interface EditedCell {
   newValue: any
 }
 
+interface POS {
+  _id: string
+  name: string
+}
+
 // Función auxiliar para comparar valores
 const areValuesEqual = (a: any, b: any): boolean => {
   if (a === b) return true
@@ -64,6 +69,7 @@ export default function AnnotationGrid({
   const [editedCells, setEditedCells] = useState<EditedCell[]>([])
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [domains, setDomains] = useState<Domain[]>([])
+  const [posList, setPosList] = useState<POS[]>([])
 
   // data + total count (for pagination)
   const [data, setData] = useState<any[]>([])
@@ -338,6 +344,11 @@ export default function AnnotationGrid({
     api.get('/domains').then(res => setDomains(res.data))
   }, [])
 
+  // Fetch POS for select
+  useEffect(() => {
+    api.get(`/projects/${projectId}/documents/${documentId}/annotations/pos/all`).then(res => setPosList(res.data))
+  }, [projectId, documentId])
+
   // fetch any time pageIndex, pageSize, sorting or filters change
   useEffect(() => {
     const fetchData = async () => {
@@ -447,8 +458,7 @@ export default function AnnotationGrid({
                 <select
                   value={domainId || ''}
                   onChange={e => {
-                    const selectedDomain = domains.find(d => d._id === e.target.value) || { _id: '', name: '' }
-                    handleCellEdit(row.original._id, colKey, originalValue, selectedDomain)
+                    handleCellEdit(row.original._id, colKey, originalValue, e.target.value)
                   }}
                   className="w-full border rounded px-2 py-1"
                 >
@@ -485,6 +495,42 @@ export default function AnnotationGrid({
             )
           }
 
+          // Select para POS
+          if (colKey === 'pos') {
+            const posId = typeof currentValue === 'object' ? currentValue._id : currentValue
+            return (
+              <div className={`transition-colors duration-200 ${getEditedCellColor(isEdited)}`}>
+                <select
+                  value={posId || ''}
+                  onChange={e => {
+                    handleCellEdit(row.original._id, colKey, originalValue, e.target.value)
+                  }}
+                  className="w-full border rounded px-2 py-1"
+                >
+                  <option value="">Selecciona POS</option>
+                  {posList.map(p => (
+                    <option key={p._id} value={p._id}>{p.name}</option>
+                  ))}
+                </select>
+                <div className="text-xs text-gray-500 mt-1 break-words">
+                  {typeof currentValue === 'object' ? currentValue.name : posList.find(p => p._id === currentValue)?.name || ''}
+                </div>
+              </div>
+            )
+          }
+
+          // Campos de solo lectura
+          if (colKey === 'customId' || colKey === 'createdAt') {
+            return (
+              <div className="w-full px-2 py-1 text-gray-600 bg-gray-50 rounded">
+                {colKey === 'createdAt' 
+                  ? new Date(currentValue).toLocaleString()
+                  : currentValue || ''
+                }
+              </div>
+            )
+          }
+
           // Input para el resto de campos
           return (
             <div className={`transition-colors duration-200 ${getEditedCellColor(isEdited)}`}>
@@ -499,7 +545,7 @@ export default function AnnotationGrid({
         },
       }))
     return [selectCol, ...editableCols, actionCol].filter(Boolean) as ColumnDef<any>[]
-  }, [allColumnDefs, visibleColumns, editedCells, domains])
+  }, [allColumnDefs, visibleColumns, editedCells, domains, posList])
 
   // build the table instance
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({})
