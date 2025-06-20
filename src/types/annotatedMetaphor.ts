@@ -3,10 +3,14 @@ export type NoveltyType = 'novel/creative' | 'conventional' | 'lexicalized' | 'f
 export type FunctionType = 'structural' | 'ontological' | 'orientational';
 export type MetaphorStatus = 'under_review' | 'approved' | 'to_edit' | 'discarded' | 'metonymy';
 
-export interface Location {
-  section: string;
-  subsection: string;
-  page: string;
+export interface Domain {
+  _id: string;
+  name: string;
+}
+
+export interface POS {
+  _id: string;
+  name: string;
 }
 
 export interface AnnotatedMetaphor {
@@ -14,14 +18,22 @@ export interface AnnotatedMetaphor {
   customId: string;
   documentId: string;
   expression: string;
-  location: Location;
+  section?: string;
+  subsection?: string;
+  subsection3?: string;
+  subsection4?: string;
+  subsection5?: string;
+  page?: string;
+  order?: string;
   triggerWord: string;
+  triggerWordLoc?: string;
   lemma: string;
+  pos?: POS;
   context: string;
   literalMeaning: string;
   contextualMeaning: string;
-  sourceDomain: { _id: string; name: string };
-  targetDomain: { _id: string; name: string };
+  sourceDomain: Domain;
+  targetDomain: Domain;
   conceptualMetaphor: string;
   ontologicalMappings: string[];
   epistemicMappings: string[];
