@@ -200,7 +200,7 @@ export default function AnnotationGrid({
               onChange={e => handleCellEdit(row.original._id, 'status', value, e.target.value)}
               className="w-full border rounded px-2 py-1"
             >
-              <option value="">Selecciona estado</option>
+              <option value="">Select status</option>
               {['under_review', 'approved', 'to_edit', 'discarded', 'metonymy'].map(st => (
                 <option key={st} value={st}>{st.replace('_', ' ').toUpperCase()}</option>
               ))}
@@ -451,7 +451,7 @@ export default function AnnotationGrid({
     
     // Mostrar mensaje de éxito (opcional - podrías usar un toast library)
     console.log(`Successfully exported ${selectedRows.length} metaphors to CSV`)
-    setExportSuccess('Successfully exported metaphors to CSV')
+    setExportSuccess(`Successfully exported ${selectedRows.length} metaphors to CSV`)
   }
 
   // Fetch domains for select
@@ -587,7 +587,7 @@ export default function AnnotationGrid({
                   }}
                   className="w-full border rounded px-2 py-1"
                 >
-                  <option value="">Selecciona dominio</option>
+                  <option value="">Select domain</option>
                   {domains.map(d => (
                     <option key={d._id} value={d._id}>{d.name}</option>
                   ))}
@@ -608,7 +608,7 @@ export default function AnnotationGrid({
                   onChange={e => handleCellEdit(row.original._id, colKey, originalValue, e.target.value)}
                   className="w-full border rounded px-2 py-1"
                 >
-                  <option value="">Selecciona opción</option>
+                  <option value="">Select option</option>
                   {colKey === 'noveltyType' && ['novel/creative', 'conventional', 'lexicalized', 'fossilized'].map(opt => (
                     <option key={opt} value={opt}>{opt}</option>
                   ))}
@@ -632,7 +632,7 @@ export default function AnnotationGrid({
                   }}
                   className="w-full border rounded px-2 py-1"
                 >
-                  <option value="">Selecciona POS</option>
+                  <option value="">Select POS</option>
                   {posList.map(p => (
                     <option key={p._id} value={p._id}>{p.name}</option>
                   ))}
@@ -702,7 +702,7 @@ export default function AnnotationGrid({
     <div className="w-full">
       {/* Column Visibility Panel */}
       <div className="mb-4 p-4 border rounded-md bg-white shadow-sm">
-        <h3 className="text-sm font-medium mb-2">Columnas visibles:</h3>
+        <h3 className="text-sm font-medium mb-2">Visible columns:</h3>
         <div className="flex flex-wrap gap-2">
           {allColumnDefs
             .filter(col => col.id !== 'select' && col.id !== 'actions')
@@ -736,7 +736,7 @@ export default function AnnotationGrid({
             onClick={() => setShowConfirmDialog(true)}
             className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark transition-colors"
           >
-            Guardar cambios ({editedCells.length})
+            Save changes ({editedCells.length})
           </button>
         </div>
       )}
@@ -745,19 +745,19 @@ export default function AnnotationGrid({
       {showConfirmDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full mx-4">
-            <h3 className="text-lg font-medium mb-4">¿Confirmar cambios?</h3>
+            <h3 className="text-lg font-medium mb-4">Confirm changes?</h3>
             <p className="mb-4">
-              Se guardarán los siguientes cambios:
+              The following changes will be saved:
             </p>
             <div className="max-h-60 overflow-y-auto mb-4">
               {editedCells.map((cell, i) => (
                 <div key={i} className="mb-2 p-2 bg-gray-50 rounded">
-                  <div className="font-medium">Campo: {cell.field}</div>
+                  <div className="font-medium">Field: {cell.field}</div>
                   <div className="text-red-500 line-through">
-                    Antes: {formatValueForDisplay(cell.oldValue)}
+                    Before: {formatValueForDisplay(cell.oldValue)}
                   </div>
                   <div className="text-green-500">
-                    Después: {formatValueForDisplay(cell.newValue)}
+                    After: {formatValueForDisplay(cell.newValue)}
                   </div>
                 </div>
               ))}
@@ -767,13 +767,13 @@ export default function AnnotationGrid({
                 onClick={() => setShowConfirmDialog(false)}
                 className="px-4 py-2 border rounded hover:bg-gray-50 transition-colors"
               >
-                Cancelar
+                Cancel
               </button>
               <button
                 onClick={saveChanges}
                 className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark transition-colors"
               >
-                Confirmar
+                Confirm
               </button>
             </div>
           </div>
@@ -911,15 +911,45 @@ export default function AnnotationGrid({
 
       {/* Pagination */}
       <div className="flex items-center justify-between mt-4 text-sm w-full">
-        <div className="flex items-center gap-2">
-          <span>
-            Page {pagination.pageIndex + 1} of{' '}
-            {Math.ceil(total / pagination.pageSize)}
-          </span>
-          <span className="text-gray-500">
-            ({total} total items)
-          </span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span>
+              Showing {pagination.pageIndex * pagination.pageSize + 1} to{' '}
+              {Math.min((pagination.pageIndex + 1) * pagination.pageSize, total)} of{' '}
+              {total} results
+            </span>
+            <span className="text-gray-500">
+              (Page {pagination.pageIndex + 1} of{' '}
+              {Math.ceil(total / pagination.pageSize)})
+            </span>
+          </div>
+          
+          {/* Page Size Selector */}
+          <div className="flex items-center gap-2">
+            <label htmlFor="pageSize" className="text-gray-600">
+              Rows per page:
+            </label>
+            <select
+              id="pageSize"
+              value={pagination.pageSize}
+              onChange={e => {
+                const newPageSize = Number(e.target.value)
+                setPagination({
+                  pageIndex: 0, // Reset to first page when changing page size
+                  pageSize: newPageSize,
+                })
+              }}
+              className="border px-2 py-1 rounded-md focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={200}>200</option>
+            </select>
+          </div>
         </div>
+        
         <div className="flex gap-2">
           <button
             className="px-3 py-1 border rounded-md hover:bg-gray-50 disabled:opacity-50"
@@ -928,6 +958,67 @@ export default function AnnotationGrid({
           >
             Previous
           </button>
+          
+          {/* Page Numbers */}
+          <div className="flex items-center gap-1">
+            {(() => {
+              const totalPages = Math.ceil(total / pagination.pageSize)
+              const currentPage = pagination.pageIndex + 1
+              const pages = []
+              
+              // Always show first page
+              if (currentPage > 3) {
+                pages.push(
+                  <button
+                    key={1}
+                    className="px-2 py-1 border rounded-md hover:bg-gray-50"
+                    onClick={() => setPagination({ ...pagination, pageIndex: 0 })}
+                  >
+                    1
+                  </button>
+                )
+                if (currentPage > 4) {
+                  pages.push(<span key="dots1" className="px-1">...</span>)
+                }
+              }
+              
+              // Show pages around current page
+              for (let i = Math.max(1, currentPage - 1); i <= Math.min(totalPages, currentPage + 1); i++) {
+                pages.push(
+                  <button
+                    key={i}
+                    className={`px-2 py-1 border rounded-md ${
+                      i === currentPage 
+                        ? 'bg-primary text-white border-primary' 
+                        : 'hover:bg-gray-50'
+                    }`}
+                    onClick={() => setPagination({ ...pagination, pageIndex: i - 1 })}
+                  >
+                    {i}
+                  </button>
+                )
+              }
+              
+              // Always show last page
+              if (currentPage < totalPages - 2) {
+                if (currentPage < totalPages - 3) {
+                  pages.push(<span key="dots2" className="px-1">...</span>)
+                }
+                pages.push(
+                  <button
+                    key={totalPages}
+                    className="px-2 py-1 border rounded-md hover:bg-gray-50"
+                    onClick={() => setPagination({ ...pagination, pageIndex: totalPages - 1 })}
+                  >
+                    {totalPages}
+                  </button>
+                )
+              }
+              
+              return pages
+            })()}
+          </div>
+          
           <button
             className="px-3 py-1 border rounded-md hover:bg-gray-50 disabled:opacity-50"
             onClick={() => table.nextPage()}
