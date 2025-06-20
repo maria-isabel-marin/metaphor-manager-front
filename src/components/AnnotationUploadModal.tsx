@@ -206,15 +206,24 @@ function AnnotationUploadModal({
               {loading && (
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm text-gray-600">
-                    <span>Uploading...</span>
-                    <span>{progress}%</span>
+                    <span>{progress < 100 ? 'Uploading file...' : 'Processing on server...'}</span>
+                    {progress < 100 && <span>{progress}%</span>}
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${progress}%` }}
-                    />
+                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    {progress < 100 ? (
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${progress}%` }}
+                      />
+                    ) : (
+                      <div className="bg-blue-600 h-2 rounded-full animate-pulse" />
+                    )}
                   </div>
+                  {progress === 100 && (
+                    <p className="text-xs text-gray-500 text-center pt-1">
+                      This might take a moment for large files. Please do not close this window.
+                    </p>
+                  )}
                 </div>
               )}
               
@@ -230,9 +239,9 @@ function AnnotationUploadModal({
                 <button
                   type="submit"
                   disabled={loading || !file}
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 transition-colors w-28"
                 >
-                  {loading ? 'Uploading...' : 'Upload'}
+                  {loading ? (progress < 100 ? `Uploading...` : 'Processing...') : 'Upload'}
                 </button>
               </div>
             </form>
