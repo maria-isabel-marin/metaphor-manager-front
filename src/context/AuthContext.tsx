@@ -8,13 +8,16 @@ import React, {
   useContext,
 } from 'react'
 import { useRouter } from 'next/router'
-import { authApi } from '@/lib/api'
+import api, { authApi } from '@/lib/api'
 
 export interface User {
   id: string
   name: string
   email: string
   role: string
+  avatar?: string
+  googleId?: string
+  columnPreferences?: Record<string, any>
 }
 
 export interface AuthContextData {
@@ -23,6 +26,9 @@ export interface AuthContextData {
   loading: boolean            // <-- newly exposed
   loginWithGoogle: () => void
   logout: () => void
+  columnPreferences: Record<string, any>
+  setColumnPreferences: (prefs: Record<string, any>) => Promise<void>
+  resetColumnPreferences: () => Promise<void>
 }
 
 interface AuthProviderProps {
@@ -47,6 +53,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [token, setToken] = useState<string | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState<boolean>(true)  // loading state
+  const [columnPreferences, setColumnPreferencesState] = useState<Record<string, any>>({})
   const router = useRouter()
 
   // 1) Load token from localStorage or handle /auth/success redirect
@@ -77,15 +84,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     setLoading(true)
     authApi
-      .get('/auth/profile', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      .get('/auth/profile')
       .then(res => {
         setUser({
           id: res.data.id,
           name: res.data.name,
           email: res.data.email,
           role: res.data.role,
+          avatar: res.data.avatar,
+          googleId: res.data.googleId,
+          columnPreferences: res.data.columnPreferences,
         })
       })
       .catch(() => {
@@ -96,8 +104,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       })
   }, [token])
 
+  // Cargar preferencias al obtener usuario
+  useEffect(() => {
+    if (!token) return;
+    api.get('/users/me/column-preferences').then(res => {
+      setColumnPreferencesState(res.data || {});
+    });
+  }, [token]);
+
   const loginWithGoogle = () => {
-    window.location.href = `/auth/google`
+    window.location.href = `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000'}/auth/google`;
   }
   const logout = () => {
     localStorage.removeItem('accessToken')
@@ -106,9 +122,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     router.push('/')
   }
 
+  const setColumnPreferences = async (prefs: Record<string, any>) => {
+    await api.patch('/users/me/column-preferences', prefs);
+    setColumnPreferencesState(prefs);
+  };
+
+  const resetColumnPreferences = async () => {
+    await api.patch('/users/me/column-preferences', {});
+    setColumnPreferencesState({});
+  };
+
   return (
     <AuthContext.Provider
-      value={{ token, user, loading, loginWithGoogle, logout }}
+      value={{ token, user, loading, loginWithGoogle, logout, columnPreferences, setColumnPreferences, resetColumnPreferences }}
     >
       {children}
     </AuthContext.Provider>

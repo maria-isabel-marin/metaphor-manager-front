@@ -11,6 +11,14 @@ export const authApi = axios.create({
   baseURL: process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3000',
 })
 
+authApi.interceptors.request.use(config => {
+  const token = localStorage.getItem('accessToken')
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('accessToken')
   if (token && config.headers) {

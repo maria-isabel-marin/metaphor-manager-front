@@ -16,7 +16,7 @@ import {
   CellContext,
 } from '@tanstack/react-table'
 import { AnnotatedMetaphor } from '@/types/annotatedMetaphor'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth } from '@/context/AuthContext'
 import { Domain } from '@/types/domain'
 
 interface Props {
@@ -59,7 +59,7 @@ export default function AnnotationGrid({
   documentId,
   role,
 }: Props) {
-  const { user } = useAuth()
+  const { user, columnPreferences, setColumnPreferences } = useAuth()
   const [editedCells, setEditedCells] = useState<EditedCell[]>([])
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [domains, setDomains] = useState<Domain[]>([])
@@ -241,7 +241,37 @@ export default function AnnotationGrid({
       .map(col => (col.id || col.accessorKey) as string),
     [allColumnDefs]
   )
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultVisible)
+
+  const PREFERENCES_KEY = `columnVisibility_doc_${documentId}`;
+
+  const allColumnsForSelector = useMemo(() => allColumnDefs
+    .filter(col => col.id !== 'select' && col.id !== 'actions')
+    .map(col => ({
+      id: (col.id || col.accessorKey) as string,
+      label: typeof col.header === 'string' ? col.header : (col.id || col.accessorKey) as string,
+    })), [allColumnDefs]);
+
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    const saved = columnPreferences?.[PREFERENCES_KEY];
+    if (Array.isArray(saved)) return saved;
+    return allColumnsForSelector.map(c => c.id);
+  });
+
+  useEffect(() => {
+    setVisibleColumns(() => {
+      const saved = columnPreferences?.[PREFERENCES_KEY];
+      if (Array.isArray(saved)) return saved;
+      return allColumnsForSelector.map(c => c.id);
+    });
+  }, [columnPreferences, allColumnsForSelector, PREFERENCES_KEY]);
+
+  useEffect(() => {
+    setColumnPreferences({
+      ...columnPreferences,
+      [PREFERENCES_KEY]: visibleColumns,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleColumns]);
 
   const handleCellEdit = (rowId: string, field: string, originalValue: any, newValue: any) => {
     // Normalizar valores nulos o undefined
