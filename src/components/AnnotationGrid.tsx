@@ -70,6 +70,7 @@ export default function AnnotationGrid({
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [domains, setDomains] = useState<Domain[]>([])
   const [posList, setPosList] = useState<POS[]>([])
+  const [exportSuccess, setExportSuccess] = useState<string | null>(null)
 
   // data + total count (for pagination)
   const [data, setData] = useState<any[]>([])
@@ -339,6 +340,120 @@ export default function AnnotationGrid({
     return isEdited ? 'bg-yellow-100' : ''
   }
 
+  // Función para exportar filas seleccionadas a CSV
+  const exportSelectedToCSV = () => {
+    if (selected.size === 0) return
+
+    // Obtener las filas seleccionadas
+    const selectedRows = data.filter(row => selected.has(row._id))
+    
+    // Definir las columnas que queremos exportar
+    const columns = [
+      'customId',
+      'expression',
+      'section',
+      'subsection',
+      'subsection3',
+      'subsection4',
+      'subsection5',
+      'page',
+      'order',
+      'triggerWord',
+      'triggerWordLoc',
+      'lemma',
+      'pos',
+      'context',
+      'contextualMeaning',
+      'literalMeaning',
+      'conceptualMetaphor',
+      'sourceDomain',
+      'targetDomain',
+      'ontologicalMappings',
+      'epistemicMappings',
+      'noveltyType',
+      'functionType',
+      'status',
+      'comments',
+      'createdAt'
+    ]
+
+    // Crear el encabezado CSV
+    const headers = [
+      'Custom ID',
+      'Expression',
+      'Section',
+      'Subsection',
+      'Subsection 3',
+      'Subsection 4',
+      'Subsection 5',
+      'Page',
+      'Order',
+      'Trigger Word',
+      'Trigger Word Location',
+      'Lemma',
+      'POS',
+      'Context',
+      'Contextual Meaning',
+      'Literal Meaning',
+      'Conceptual Metaphor',
+      'Source Domain',
+      'Target Domain',
+      'Ontological Mappings',
+      'Epistemic Mappings',
+      'Novelty Type',
+      'Function Type',
+      'Status',
+      'Comments',
+      'Created At'
+    ]
+
+    // Crear las filas de datos
+    const csvRows = selectedRows.map(row => {
+      return columns.map(col => {
+        let value = row[col]
+        
+        // Manejar casos especiales
+        if (col === 'pos') {
+          value = typeof value === 'object' ? value.name : ''
+        } else if (col === 'sourceDomain' || col === 'targetDomain') {
+          value = typeof value === 'object' ? value.name : ''
+        } else if (col === 'ontologicalMappings' || col === 'epistemicMappings' || col === 'comments') {
+          value = Array.isArray(value) ? value.join('; ') : value
+        } else if (col === 'createdAt') {
+          value = value ? new Date(value).toLocaleString() : ''
+        }
+        
+        // Escapar comillas y envolver en comillas si contiene comas o saltos de línea
+        const stringValue = String(value || '')
+        if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+          return `"${stringValue.replace(/"/g, '""')}"`
+        }
+        return stringValue
+      }).join(',')
+    })
+
+    // Combinar encabezado y datos
+    const csvContent = [headers.join(','), ...csvRows].join('\n')
+    
+    // Crear y descargar el archivo
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `selected_metaphors_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    // Limpiar la selección después de exportar
+    setSelected(new Set())
+    
+    // Mostrar mensaje de éxito (opcional - podrías usar un toast library)
+    console.log(`Successfully exported ${selectedRows.length} metaphors to CSV`)
+    setExportSuccess('Successfully exported metaphors to CSV')
+  }
+
   // Fetch domains for select
   useEffect(() => {
     api.get('/domains').then(res => setDomains(res.data))
@@ -348,6 +463,16 @@ export default function AnnotationGrid({
   useEffect(() => {
     api.get(`/projects/${projectId}/documents/${documentId}/annotations/pos/all`).then(res => setPosList(res.data))
   }, [projectId, documentId])
+
+  // Clear export success message after 3 seconds
+  useEffect(() => {
+    if (exportSuccess) {
+      const timer = setTimeout(() => {
+        setExportSuccess(null)
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [exportSuccess])
 
   // fetch any time pageIndex, pageSize, sorting or filters change
   useEffect(() => {
@@ -695,26 +820,30 @@ export default function AnnotationGrid({
           )}
         </select>
 
-        {role === 'editor' && selected.size > 0 && (
+        {selected.size > 0 && (
           <button
-            className="px-4 py-1.5 bg-primary text-white rounded-md hover:bg-blue-700 transition ml-auto"
-            onClick={async () => {
-              await api.post(
-                `/projects/${projectId}/documents/${documentId}/annotations/bulk-update`,
-                {
-                  ids: Array.from(selected),
-                  updates: { status: 'approved' },
-                }
-              )
-              setSelected(new Set())
-              const newPage = pagination.pageIndex
-              setPagination({ ...pagination, pageIndex: newPage })
-            }}
+            className="px-4 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition ml-auto flex items-center gap-2"
+            onClick={exportSelectedToCSV}
           >
-            Approve Selected ({selected.size})
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export Selected ({selected.size})
           </button>
         )}
       </div>
+
+      {/* Export Success Message */}
+      {exportSuccess && (
+        <div className="mb-4 p-3 border rounded-md bg-green-50 border-green-200">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <p className="text-green-700 font-medium">{exportSuccess}</p>
+          </div>
+        </div>
+      )}
 
       {/* Table Container with fixed height and scroll */}
       <div className="mt-4 border rounded-lg">
