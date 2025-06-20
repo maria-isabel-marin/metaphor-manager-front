@@ -14,6 +14,7 @@ import {
   Row,
   HeaderGroup,
   CellContext,
+  ColumnSizingState,
 } from '@tanstack/react-table'
 import { AnnotatedMetaphor } from '@/types/annotatedMetaphor'
 import { useAuth } from '@/context/AuthContext'
@@ -501,21 +502,29 @@ export default function AnnotationGrid({
   }, [allColumnDefs, visibleColumns, editedCells, domains])
 
   // build the table instance
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({})
   const table = useReactTable({
     data,
     columns,
-    pageCount: Math.ceil(total / pagination.pageSize),
-    manualPagination: true,
-    manualSorting: true,
     state: {
-      pagination,
       sorting,
+      pagination,
+      columnSizing,
     },
+    columnResizeMode: 'onChange',
+    onColumnSizingChange: setColumnSizing,
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: true,
+    manualSorting: true,
+    pageCount: Math.ceil(total / pagination.pageSize),
+    defaultColumn: {
+      minSize: 50,
+      maxSize: 800,
+    }
   })
 
   return (
@@ -663,19 +672,16 @@ export default function AnnotationGrid({
 
       {/* Table Container with fixed height and scroll */}
       <div className="mt-4 border rounded-lg">
-        <div className="max-h-[600px] overflow-y-auto">
-          <table className="w-full border-collapse">
+        <div className="max-h-[600px] overflow-y-auto overflow-x-auto">
+          <table className="border-collapse" style={{ tableLayout: 'fixed', width: table.getTotalSize() }}>
             <thead className="sticky top-0 bg-gray-50 z-10">
-              {table.getHeaderGroups().map(headerGroup => (
+              {table.getHeaderGroups().map((headerGroup: HeaderGroup<AnnotatedMetaphor>) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map(header => (
                     <th
                       key={header.id}
-                      className="px-4 py-2 text-center text-sm font-medium text-gray-900 border-b select-none bg-gray-50"
-                      style={{
-                        width: header.getSize(),
-                        minWidth: header.column.columnDef.minSize,
-                      }}
+                      className="px-4 py-2 text-center text-sm font-medium text-gray-900 border-b select-none bg-gray-50 relative group"
+                      style={{ width: header.getSize() }}
                     >
                       <div className="flex items-center justify-center">
                         {header.isPlaceholder
@@ -685,6 +691,11 @@ export default function AnnotationGrid({
                               header.getContext()
                             )}
                       </div>
+                      <div
+                        onMouseDown={header.getResizeHandler()}
+                        onTouchStart={header.getResizeHandler()}
+                        className="absolute top-0 right-0 h-full w-2 cursor-col-resize bg-gray-400 opacity-0 group-hover:opacity-50 select-none touch-none"
+                      />
                     </th>
                   ))}
                 </tr>
