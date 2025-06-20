@@ -13,6 +13,7 @@ import {
   TrashIcon,
   ArrowUpTrayIcon,
   CheckCircleIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline'
 
 interface DocumentCardProps {
@@ -34,6 +35,12 @@ export default function DocumentCard({
 }: DocumentCardProps) {
   const timeAgo = formatDistanceToNow(new Date(document.createdAt), { addSuffix: true });
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const handleOpenDocument = () => {
+    if (document.fileUrl) {
+      window.open(document.fileUrl, '_blank');
+    }
+  };
 
   return (
     <div className={`
@@ -64,6 +71,15 @@ export default function DocumentCard({
                   className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  {document.fileUrl && (
+                    <button 
+                      onClick={handleOpenDocument} 
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+                    >
+                      <EyeIcon className="w-4 h-4 text-gray-500"/>
+                      Open Document
+                    </button>
+                  )}
                   {onUpload && (
                      <button onClick={onUpload} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">
                       <ArrowUpTrayIcon className="w-4 h-4 text-gray-500"/>
@@ -94,17 +110,29 @@ export default function DocumentCard({
           </p>
         </div>
         
-        {/* Action button, pushed to the bottom */}
-        {onView && (
-          <button
-            onClick={onView}
-            className="w-full mt-4 px-3 py-2 text-sm font-semibold text-white bg-primary hover:bg-primary-dark 
-                     rounded-md transition-colors duration-200 flex items-center justify-center gap-2"
-          >
-            <Bars3Icon className="h-5 w-5" />
-            Manage Annotations
-          </button>
-        )}
+        {/* Action buttons, pushed to the bottom */}
+        <div className="mt-4 space-y-2">
+          {document.fileUrl && (
+            <button
+              onClick={handleOpenDocument}
+              className="w-full px-3 py-2 text-sm font-semibold text-primary border border-primary hover:bg-primary hover:text-white 
+                       rounded-md transition-colors duration-200 flex items-center justify-center gap-2"
+            >
+              <EyeIcon className="h-4 w-4" />
+              Open Document ({document.fileType?.toUpperCase() || 'FILE'})
+            </button>
+          )}
+          {onView && (
+            <button
+              onClick={onView}
+              className="w-full px-3 py-2 text-sm font-semibold text-white bg-primary hover:bg-primary-dark 
+                       rounded-md transition-colors duration-200 flex items-center justify-center gap-2"
+            >
+              <Bars3Icon className="h-5 w-5" />
+              Manage Annotations
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Footer */}
