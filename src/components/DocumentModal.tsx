@@ -38,6 +38,7 @@ export default function DocumentModal({
   const [description, setDescription] = useState('')
   const [type, setType] = useState('')
   const [language, setLanguage] = useState('')
+  const [notes, setNotes] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -48,15 +49,18 @@ export default function DocumentModal({
       setDescription(document.description || '')
       setType(document.type)
       setLanguage(document.language)
+      setNotes(document.notes || '')
+      setFile(null)
     } else {
       // Reset form when creating new
       setTitle('')
       setDescription('')
       setType('')
       setLanguage('')
+      setNotes('')
       setFile(null)
     }
-  }, [document])
+  }, [document, isOpen]) // Depend on isOpen to reset form correctly
 
   if (!isOpen) return null
 
@@ -66,26 +70,29 @@ export default function DocumentModal({
       alert('Title is required.')
       return
     }
-
     setSubmitting(true)
-    try {
-      const formData = new FormData()
-      formData.append('title', title)
-      formData.append('description', description)
-      formData.append('type', type)
-      formData.append('language', language)
-      formData.append('projectId', projectId)
-      if (file) {
-        formData.append('file', file)
-      }
 
+    try {
       let response
       if (document) {
-        // Update existing document
-        response = await api.patch<Document>(`/documents/${document._id}`, formData)
+        // UPDATE (JSON)
+        const payload = { title, description, type, language, notes };
+        response = await api.patch<Document>(`/documents/${document._id}`, payload);
       } else {
-        // Create new document
-        response = await api.post<Document>('/documents', formData)
+        // CREATE (FormData)
+        const formData = new FormData()
+        formData.append('title', title)
+        formData.append('description', description)
+        formData.append('type', type)
+        formData.append('language', language)
+        formData.append('notes', notes)
+        formData.append('projectId', projectId)
+        if (file) {
+          formData.append('file', file)
+        }
+        response = await api.post<Document>('/documents', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
       }
 
       onSaved(response.data)
@@ -100,7 +107,7 @@ export default function DocumentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white rounded-lg w-full max-w-md p-6">
+      <div className="bg-white rounded-lg w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">
           {document ? 'Edit Document' : 'New Document'}
         </h2>
@@ -126,6 +133,16 @@ export default function DocumentModal({
             />
           </div>
 
+          {/* Notes */}
+          <div>
+            <label className="block mb-1 font-medium">Notes</label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              className="w-full border rounded px-3 py-2 h-20"
+            />
+          </div>
+
           {/* Type */}
           <div>
             <label className="block mb-1 font-medium">Type</label>
@@ -135,10 +152,7 @@ export default function DocumentModal({
               className="w-full border rounded px-3 py-2"
             >
               <option value="">Select type...</option>
-              <option value="Legal">Legal</option>
-              <option value="Policy">Policy</option>
-              <option value="Academic">Academic</option>
-              <option value="Other">Other</option>
+              {TYPE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
           </div>
 
@@ -151,17 +165,14 @@ export default function DocumentModal({
               className="w-full border rounded px-3 py-2"
             >
               <option value="">Select language...</option>
-              <option value="English">English</option>
-              <option value="Spanish">Spanish</option>
-              <option value="French">French</option>
-              <option value="Other">Other</option>
+              {LANGUAGE_OPTIONS.map(lang => <option key={lang} value={lang}>{lang}</option>)}
             </select>
           </div>
 
           {/* File upload (only for new documents) */}
           {!document && (
             <div>
-              <label className="block mb-1 font-medium">File</label>
+              <label className="block mb-1 font-medium">File (PDF or TXT)</label>
               <input
                 type="file"
                 onChange={e => setFile(e.target.files?.[0] || null)}

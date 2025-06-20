@@ -9,6 +9,7 @@ import AnnotationUploadModal from '@/components/AnnotationUploadModal'
 import DocumentModal from '@/components/DocumentModal'
 import { Document } from '@/types/document'
 import Breadcrumb from '@/components/Breadcrumb'
+import { PlusIcon } from '@heroicons/react/24/solid'
 
 console.log({
   Layout:   typeof Layout,
@@ -68,8 +69,7 @@ export default function ProjectDocumentsPage() {
   return (
     <Layout breadcrumb={<Breadcrumb items={[
       { label: 'Projects', href: '/projects' },
-      { label: project?.name || 'Project', href: `/projects/${projectId}/documents` },
-      { label: 'Documents' }
+      { label: project?.name || 'Project' }
     ]} />}>
       {/** Document modal (new/edit) **/}
       <DocumentModal
@@ -103,42 +103,39 @@ export default function ProjectDocumentsPage() {
       )}
 
       <div className="space-y-6 w-full">
-        {project && (
-          <div className="bg-white p-6 rounded-lg shadow-sm w-full">
-            <h1 className="text-2xl font-bold">{project.name}</h1>
-            <p className="text-gray-600 mt-2">{project.description}</p>
+        {/** Page Header **/}
+        <div className="flex flex-wrap justify-between items-center gap-4 w-full">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">Documents</h1>
+            <p className="text-gray-500 mt-1">Manage documents for {project?.name || 'this project'}.</p>
           </div>
-        )}
-
-        {/** action bar **/}
-        <div className="flex flex-wrap justify-between items-center w-full">
-          <button
-            onClick={() => setIsDocModalOpen(true)}
-            className="px-4 py-2 bg-primary text-white rounded-lg transition hover:bg-blue-700"
-          >
-            + New Document
-          </button>
-
-          <div className="space-x-4">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => router.push(`/projects/${projectId}/all-metaphors`)}
-              className="px-4 py-2 bg-primary text-white rounded-lg transition hover:bg-blue-700"
+              className="px-4 py-2 text-sm font-semibold bg-white border border-gray-300 text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 transition"
             >
               All Metaphors
             </button>
             <button
               onClick={() => router.push('/domains/relations')}
-              className="px-4 py-2 bg-primary text-white rounded-lg transition hover:bg-blue-700"
+              className="px-4 py-2 text-sm font-semibold bg-white border border-gray-300 text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 transition"
             >
               Manage Domain Relations
+            </button>
+            <button
+              onClick={() => setIsDocModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white font-semibold rounded-lg shadow-sm transition hover:bg-primary-dark"
+            >
+              <PlusIcon className="w-5 h-5" />
+              New Document
             </button>
           </div>
         </div>
 
         {loading ? (
-          <div className="w-full text-center py-8">Loading documents...</div>
+          <div className="w-full text-center py-12 text-gray-500">Loading documents...</div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
             {documents.map((doc) => (
               <DocumentCard
                 key={doc._id}
