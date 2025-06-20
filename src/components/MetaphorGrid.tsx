@@ -44,7 +44,7 @@ export default function MetaphorGrid({ metaphors, onAction }: MetaphorGridProps)
                 <td className="px-4 py-2">{m.customId}</td>
                 <td className="px-4 py-2">{m.expression}</td>
                 <td className="px-4 py-2">
-                  {m.location.section}.{m.location.subsection} (p.{m.location.page})
+                  {m.section}.{m.subsection} (p.{m.page})
                 </td>
                 <td className="px-4 py-2">{m.triggerWord}</td>
                 <td className="px-4 py-2 capitalize">{m.noveltyType}</td>

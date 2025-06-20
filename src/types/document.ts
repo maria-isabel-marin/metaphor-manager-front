@@ -13,13 +13,16 @@ export interface Document {
   language: string
   notes?: string
 
-  // rutas en GCS (opcional guardar si lo usas)
+  // New unified file path
+  gcsPath?: string
+  fileType?: string
+
+  // Legacy fields for backward compatibility
   gcsPathPdf?: string
   gcsPathTxt?: string
 
   // URLs firmadas para descarga
-  filePdfUrl?: string
-  fileTxtUrl?: string
+  fileUrl?: string
 
   status: DocumentStatus
   createdAt: string

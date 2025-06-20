@@ -38,9 +38,9 @@ export default function DocumentModal({
   const [description, setDescription] = useState('')
   const [type, setType] = useState('')
   const [language, setLanguage] = useState('')
-  const [notes, setNotes] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [errors, setErrors] = useState<{[key: string]: string}>({})
 
   // Load document data when editing
   useEffect(() => {
@@ -49,7 +49,6 @@ export default function DocumentModal({
       setDescription(document.description || '')
       setType(document.type)
       setLanguage(document.language)
-      setNotes(document.notes || '')
       setFile(null)
     } else {
       // Reset form when creating new
@@ -57,27 +56,61 @@ export default function DocumentModal({
       setDescription('')
       setType('')
       setLanguage('')
-      setNotes('')
       setFile(null)
     }
+    setErrors({})
   }, [document, isOpen]) // Depend on isOpen to reset form correctly
 
   if (!isOpen) return null
 
+  const validateForm = () => {
+    const newErrors: {[key: string]: string} = {}
+    
+    if (!title.trim()) {
+      newErrors.title = 'Title is required'
+    }
+    
+    if (!type.trim()) {
+      newErrors.type = 'Type is required'
+    }
+    
+    if (!language.trim()) {
+      newErrors.language = 'Language is required'
+    }
+    
+    if (!document && !file) {
+      newErrors.file = 'File is required for new documents'
+    }
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!title.trim()) {
-      alert('Title is required.')
+    
+    if (!validateForm()) {
       return
     }
+    
     setSubmitting(true)
 
     try {
       let response
       if (document) {
-        // UPDATE (JSON)
-        const payload = { title, description, type, language, notes };
-        response = await api.patch<Document>(`/documents/${document._id}`, payload);
+        // UPDATE (FormData to support file upload)
+        const formData = new FormData()
+        formData.append('title', title)
+        formData.append('description', description)
+        formData.append('type', type)
+        formData.append('language', language)
+        if (file) {
+          formData.append('file', file)
+        }
+        
+        response = await api.patch<Document>(`/documents/${document._id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
       } else {
         // CREATE (FormData)
         const formData = new FormData()
@@ -85,7 +118,6 @@ export default function DocumentModal({
         formData.append('description', description)
         formData.append('type', type)
         formData.append('language', language)
-        formData.append('notes', notes)
         formData.append('projectId', projectId)
         if (file) {
           formData.append('file', file)
@@ -118,9 +150,9 @@ export default function DocumentModal({
             <input
               value={title}
               onChange={e => setTitle(e.target.value)}
-              required
-              className="w-full border rounded px-3 py-2"
+              className={`w-full border rounded px-3 py-2 ${errors.title ? 'border-red-500' : ''}`}
             />
+            {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
           </div>
 
           {/* Description */}
@@ -133,54 +165,52 @@ export default function DocumentModal({
             />
           </div>
 
-          {/* Notes */}
-          <div>
-            <label className="block mb-1 font-medium">Notes</label>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              className="w-full border rounded px-3 py-2 h-20"
-            />
-          </div>
-
           {/* Type */}
           <div>
-            <label className="block mb-1 font-medium">Type</label>
+            <label className="block mb-1 font-medium">Type *</label>
             <select
               value={type}
               onChange={e => setType(e.target.value)}
-              className="w-full border rounded px-3 py-2"
+              className={`w-full border rounded px-3 py-2 ${errors.type ? 'border-red-500' : ''}`}
             >
               <option value="">Select type...</option>
               {TYPE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
+            {errors.type && <p className="text-red-500 text-sm mt-1">{errors.type}</p>}
           </div>
 
           {/* Language */}
           <div>
-            <label className="block mb-1 font-medium">Language</label>
+            <label className="block mb-1 font-medium">Language *</label>
             <select
               value={language}
               onChange={e => setLanguage(e.target.value)}
-              className="w-full border rounded px-3 py-2"
+              className={`w-full border rounded px-3 py-2 ${errors.language ? 'border-red-500' : ''}`}
             >
               <option value="">Select language...</option>
               {LANGUAGE_OPTIONS.map(lang => <option key={lang} value={lang}>{lang}</option>)}
             </select>
+            {errors.language && <p className="text-red-500 text-sm mt-1">{errors.language}</p>}
           </div>
 
-          {/* File upload (only for new documents) */}
-          {!document && (
-            <div>
-              <label className="block mb-1 font-medium">File (PDF or TXT)</label>
-              <input
-                type="file"
-                onChange={e => setFile(e.target.files?.[0] || null)}
-                accept=".txt,.pdf"
-                className="w-full border rounded px-3 py-2"
-              />
-            </div>
-          )}
+          {/* File upload */}
+          <div>
+            <label className="block mb-1 font-medium">
+              File {!document ? '*' : ''} (PDF or TXT)
+            </label>
+            <input
+              type="file"
+              onChange={e => setFile(e.target.files?.[0] || null)}
+              accept=".txt,.pdf"
+              className={`w-full border rounded px-3 py-2 ${errors.file ? 'border-red-500' : ''}`}
+            />
+            {errors.file && <p className="text-red-500 text-sm mt-1">{errors.file}</p>}
+            {document && (
+              <p className="text-gray-500 text-sm mt-1">
+                Leave empty to keep current file: {document.fileType || 'Unknown type'}
+              </p>
+            )}
+          </div>
 
           {/* Actions */}
           <div className="flex justify-end space-x-2 pt-4">
