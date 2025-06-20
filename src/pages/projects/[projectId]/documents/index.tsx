@@ -94,9 +94,8 @@ export default function ProjectDocumentsPage() {
           documentId={uploadDocId}
           isOpen={!!uploadDocId}
           onClose={() => setUploadDocId(null)}
-          onUploaded={(count) => {
-            alert(`${count} metaphors imported.`)
-            setUploadDocId(null)
+          onUploaded={() => {
+            // Refresh documents in the background, modal stays open for summary
             loadAll()
           }}
         />
