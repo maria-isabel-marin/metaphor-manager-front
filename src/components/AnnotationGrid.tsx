@@ -129,7 +129,7 @@ export default function AnnotationGrid({
     { accessorKey: 'page', header: 'Page', size: 80 },
     { accessorKey: 'triggerWord', header: 'Trigger Word', minSize: 120 },
     { accessorKey: 'lemma', header: 'Lemma', minSize: 120 },
-    { accessorKey: 'context', header: 'Context', minSize: 200 },
+    { accessorKey: 'context', header: 'Context', minSize: 400 },
     {
       accessorKey: 'contextualMeaning',
       header: 'Contextual Meaning',
