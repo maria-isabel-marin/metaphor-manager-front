@@ -8,6 +8,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { Project } from '@/types/project'
 import Layout from '@/components/Layout'
 import Breadcrumb from '@/components/Breadcrumb'
+import { PlusIcon } from '@heroicons/react/24/solid'
+import AboutModal from '@/components/AboutModal'
 
 interface ProjectsResponse {
   owned: Project[];
@@ -22,6 +24,20 @@ export default function ProjectsIndexPage() {
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const { logout } = useAuth()
   const router = useRouter()
+  const [isNewUser, setIsNewUser] = useState(false)
+
+  useEffect(() => {
+    // Check if the user has seen the about modal before
+    const hasSeenModal = localStorage.getItem('hasSeenAboutModal')
+    if (!hasSeenModal) {
+      setIsNewUser(true)
+    }
+  }, [])
+
+  const handleCloseAboutModal = () => {
+    localStorage.setItem('hasSeenAboutModal', 'true')
+    setIsNewUser(false)
+  }
 
   const loadProjects = useCallback(() => {
     setLoading(true)
@@ -100,6 +116,8 @@ export default function ProjectsIndexPage() {
           onSaved={handleSaveProject}
           project={editingProject}
         />
+
+        <AboutModal isOpen={isNewUser} onClose={handleCloseAboutModal} />
 
         {loading ? (
           <div className="w-full text-center py-8">Loading projects...</div>

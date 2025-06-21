@@ -9,11 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.4",
     "@heroicons/react": "^2.2.0",
     "@tanstack/react-query": "^5.80.6",
     "@tanstack/react-table": "^8.21.3",
     "axios": "^1.9.0",
     "jwt-decode": "^4.0.0",
+    "mermaid": "^11.7.0",
     "next": "15.3.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -21,6 +23,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/line-clamp": "^0.4.4",
+    "@types/mermaid": "^9.1.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
