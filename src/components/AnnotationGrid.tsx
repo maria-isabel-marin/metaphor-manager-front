@@ -456,13 +456,17 @@ export default function AnnotationGrid({
 
   // Fetch domains for select
   useEffect(() => {
-    api.get('/domains').then(res => setDomains(res.data))
-  }, [])
+    api.get<Domain[]>('/domains').then(res => {
+      const sortedDomains = res.data.sort((a, b) => a.name.localeCompare(b.name));
+      setDomains(sortedDomains);
+    });
 
-  // Fetch POS for select
-  useEffect(() => {
-    api.get(`/projects/${projectId}/documents/${documentId}/annotations/pos/all`).then(res => setPosList(res.data))
-  }, [projectId, documentId])
+    // Fetch POS
+    api.get<POS[]>(`/projects/${projectId}/documents/${documentId}/annotations/pos/all`).then(res => {
+      const sortedPos = res.data.sort((a, b) => a.name.localeCompare(b.name));
+      setPosList(sortedPos);
+    });
+  }, [projectId, documentId]);
 
   // Clear export success message after 3 seconds
   useEffect(() => {
