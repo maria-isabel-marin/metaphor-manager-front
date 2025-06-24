@@ -25,12 +25,13 @@ export default function ProjectModal({
   const [reviewerEmails, setReviewerEmails] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const isEditing = project !== null
+  const isEditing = !!(project && project._id)
 
+  // Solo poblar campos si project está definido y tiene datos
   useEffect(() => {
-    if (isOpen && isEditing) {
-      setName(project.name)
-      setDescription(project.description)
+    if (isOpen && isEditing && project) {
+      setName(project.name || '')
+      setDescription(project.description || '')
       setContactEmail(project.contactEmail || '')
       setNotes(project.notes || '')
       setReviewerEmails(
@@ -40,15 +41,15 @@ export default function ProjectModal({
               .join(', ')
           : ''
       )
-    } else {
-      // Reset form when modal opens for creation or is closed
+    } else if (isOpen && !isEditing) {
+      // Reset form only when creating new project
       setName('')
       setDescription('')
       setContactEmail('')
       setNotes('')
       setReviewerEmails('')
     }
-  }, [isOpen, project, isEditing])
+  }, [isOpen, isEditing, project])
 
   if (!isOpen) return null
 
@@ -75,7 +76,7 @@ export default function ProjectModal({
     setSubmitting(true)
     try {
       let response
-      if (isEditing) {
+      if (isEditing && project) {
         response = await api.patch<Project>(`/projects/${project._id}`, payload)
       } else {
         response = await api.post<Project>('/projects', payload)
@@ -122,7 +123,7 @@ export default function ProjectModal({
           <div>
             <label className="block mb-1 font-medium">Owner</label>
             <div className="w-full border rounded px-3 py-2 bg-gray-100 text-gray-700">
-              {isEditing ? (project.owner as any)?.email : (user?.name || user?.email || '—')}
+              {isEditing && project && project.owner ? (typeof project.owner === 'object' ? project.owner.email : project.owner) : (user?.name || user?.email || '—')}
             </div>
           </div>
 
