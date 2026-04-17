@@ -1,4 +1,3 @@
-// src/pages/auth/success.tsx
 import { useEffect } from 'react'
 import { useRouter } from 'next/router'
 
@@ -9,9 +8,17 @@ export default function AuthSuccessPage() {
   useEffect(() => {
     if (typeof token === 'string') {
       localStorage.setItem('accessToken', token)
-      router.replace('/projects')
+
+      const redirectTo = localStorage.getItem('postLoginRedirect') || '/projects'
+      localStorage.removeItem('postLoginRedirect')
+
+      router.replace(redirectTo)
     }
   }, [token, router])
 
-  return <div className="flex items-center justify-center h-screen">Logging you in…</div>
+  return (
+    <div className="flex items-center justify-center h-screen">
+      Logging you in…
+    </div>
+  )
 }

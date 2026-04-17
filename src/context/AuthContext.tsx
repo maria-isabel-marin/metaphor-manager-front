@@ -57,22 +57,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const router = useRouter()
 
   // 1) Load token from localStorage or handle /auth/success redirect
-  useEffect(() => {
+    useEffect(() => {
     const stored = localStorage.getItem('accessToken')
     if (stored) {
       setToken(stored)
+    } else {
+      setLoading(false)
     }
-
-    if (
-      router.pathname === '/auth/success' &&
-      typeof router.query.token === 'string'
-    ) {
-      const t = router.query.token
-      localStorage.setItem('accessToken', t)
-      setToken(t)
-      router.replace('/projects')
-    }
-  }, [router])
+  }, [])
 
   // 2) Fetch profile whenever token changes
   useEffect(() => {
@@ -96,7 +88,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           columnPreferences: res.data.columnPreferences,
         })
       })
-      .catch(() => {
+            .catch(() => {
+        localStorage.removeItem('accessToken')
+        setToken(null)
         setUser(null)
       })
       .finally(() => {
@@ -115,8 +109,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const loginWithGoogle = () => {
     window.location.href = `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000'}/auth/google`;
   }
-  const logout = () => {
+    const logout = () => {
     localStorage.removeItem('accessToken')
+    localStorage.removeItem('postLoginRedirect')
     setToken(null)
     setUser(null)
     router.push('/')
