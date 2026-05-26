@@ -13,6 +13,7 @@ export interface DomainRelation {
   domainA: string    // ID of source domain
   domainB: string    // ID of target domain
   relationType: RelationType
+  isActive?: boolean // Valition is active
   createdAt: string
   updatedAt: string
 }
