@@ -1,0 +1,70 @@
+# Cursor Rules for Metaphor Manager Frontend
+
+## Language and Localization Rules
+
+### 1. **UI Language Standard**
+- **All user interface elements MUST be in English**
+- This includes but is not limited to:
+  - Button labels
+  - Form field labels
+  - Select options
+  - Dialog titles and messages
+  - Error messages
+  - Success notifications
+  - Tooltips
+  - Placeholder text
+  - Navigation labels
+  - Status messages
+
+### 2. **Code Comments**
+- **Code comments should be in English**
+- Use clear, descriptive comments that explain the purpose and functionality
+- Follow standard English technical writing conventions
+
+### 3. **Variable and Function Names**
+- **Use English for all variable names, function names, and identifiers**
+- Follow camelCase convention for JavaScript/TypeScript
+- Use descriptive names that clearly indicate purpose
+
+### 4. **Documentation**
+- **All documentation must be in English**
+- This includes README files, API documentation, and inline documentation
+- Use clear, professional English suitable for technical audiences
+
+### 5. **Data and Content**
+- **User-generated content may be in any language** (metaphors, annotations, etc.)
+- **System-generated content must be in English** (status messages, notifications, etc.)
+
+### 6. **Internationalization Considerations**
+- While the current requirement is English-only, code should be structured to support future internationalization
+- Avoid hardcoding text strings in components
+- Consider using a translation system for future multi-language support
+
+### 7. **Consistency**
+- Maintain consistent terminology across the application
+- Use standard UI/UX terminology
+- Follow established naming conventions
+
+## Examples
+
+### ✅ Correct (English)
+```javascript
+<button>Save Changes</button>
+<option value="">Select Status</option>
+<h3>Confirm Changes?</h3>
+<p>The following changes will be saved:</p>
+```
+
+### ❌ Incorrect (Spanish)
+```javascript
+<button>Guardar Cambios</button>
+<option value="">Seleccionar Estado</option>
+<h3>¿Confirmar Cambios?</h3>
+<p>Se guardarán los siguientes cambios:</p>
+```
+
+## Enforcement
+- All new code must follow these language standards
+- Existing code should be updated to comply when modified
+- Code reviews should include language compliance checks
+- Automated linting rules should be considered for future implementation 
